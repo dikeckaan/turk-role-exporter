@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turk Role Exporter</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <div class="container">
+    <!-- Banner -->
+    <div id="banner-container"></div>
+
+    <!-- Header -->
+    <div class="header">
+      <h1>Turk Role Exporter</h1>
+      <p>Turkiye amator telsiz rolelerini CPS uyumlu CSV formatinda indirin</p>
+    </div>
+
+    <!-- Cihaz Secici -->
+    <div class="section">
+      <div class="section-title">Cihaz Secimi</div>
+      <select id="cihaz-select"></select>
+      <p class="device-note">Diger cihaz destekleri yakinda eklenecektir.</p>
+    </div>
+
+    <!-- Istatistik Paneli -->
+    <div class="section">
+      <div class="section-title">Istatistikler</div>
+      <div class="stats-panel">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-toplam">0</div>
+          <div class="stat-label">Toplam</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-aktif">0</div>
+          <div class="stat-label">Aktif</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pasif">0</div>
+          <div class="stat-label">Pasif</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-vhf">0</div>
+          <div class="stat-label">VHF</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-uhf">0</div>
+          <div class="stat-label">UHF</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-aprs">0</div>
+          <div class="stat-label">APRS</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-dijital">0</div>
+          <div class="stat-label">Dijital</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-filtrelenmis">0</div>
+          <div class="stat-label">Filtrelenmis</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Harita -->
+    <div class="section">
+      <div class="section-title">Harita</div>
+      <div id="harita" class="map-container"></div>
+    </div>
+
+    <!-- Filtreler -->
+    <div class="section">
+      <div class="section-title">Filtreler</div>
+      <div class="filters-grid">
+        <!-- Durum -->
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="filtre-aktif" class="toggle" checked>
+            Sadece Aktif Roleler
+          </label>
+        </div>
+
+        <!-- Ruhsat -->
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="filtre-ruhsat" class="toggle">
+            Sadece Ruhsatli Roleler
+          </label>
+        </div>
+
+        <!-- Topluluk Puani -->
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="filtre-puan" class="toggle">
+            Dusuk Puanlilari Gizle (&lt;%40)
+          </label>
+        </div>
+
+        <!-- Bant -->
+        <div class="filter-group">
+          <label>Bant</label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" data-bant="VHF" checked> VHF</label>
+            <label><input type="checkbox" data-bant="UHF" checked> UHF</label>
+            <label><input type="checkbox" data-bant="APRS" checked> APRS</label>
+          </div>
+        </div>
+
+        <!-- Mod -->
+        <div class="filter-group">
+          <label for="mod-select">Mod</label>
+          <select id="mod-select">
+            <option value="hepsi">Hepsi</option>
+            <option value="sadece-analog">Sadece Analog</option>
+            <option value="sadece-dijital">Sadece Dijital</option>
+            <option value="dijital-oncelikli">Dijital Oncelikli</option>
+          </select>
+        </div>
+
+        <!-- TA Bolgesi -->
+        <div class="filter-group">
+          <label>TA Bolgesi</label>
+          <div id="ta-bolge-listesi" class="checkbox-group"></div>
+        </div>
+
+        <!-- Sehir -->
+        <div class="filter-group">
+          <label>Sehir</label>
+          <input type="text" id="sehir-arama" class="search-input" placeholder="Sehir ara...">
+          <div class="multi-select-controls">
+            <button type="button" id="sehir-tumunu-sec" class="btn-secondary btn-sm">Tumunu Sec</button>
+            <button type="button" id="sehir-temizle" class="btn-secondary btn-sm">Temizle</button>
+          </div>
+          <div id="sehir-listesi" class="multi-select"></div>
+        </div>
+
+        <!-- Ilce -->
+        <div class="filter-group">
+          <label>Ilce</label>
+          <div id="ilce-listesi" class="multi-select"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kanal Opsiyonlari -->
+    <div class="section">
+      <div class="section-title">Kanal Opsiyonlari</div>
+      <div class="filters-grid">
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="opsiyon-pmr" class="toggle">
+            PMR Kanallari Ekle
+          </label>
+        </div>
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="opsiyon-dpmr" class="toggle">
+            dPMR Kanallari Ekle
+          </label>
+        </div>
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="opsiyon-rxonly" class="toggle" checked>
+            Tum Roleleri RX Only Yap
+          </label>
+        </div>
+        <div class="filter-group">
+          <label for="guc-select">Guc Seviyesi</label>
+          <select id="guc-select">
+            <option value="High">High</option>
+            <option value="Mid">Mid</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="kanal-format-select">Kanal Adi Formati</label>
+          <select id="kanal-format-select">
+            <option value="plaka-konum-bant">Plaka + Konum + Bant</option>
+            <option value="sehir-konum">Sehir + Konum</option>
+            <option value="plaka-konum">Plaka + Konum</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="dosya-adi">Dosya Adi</label>
+          <input type="text" id="dosya-adi" value="roleler_programlama.csv">
+        </div>
+      </div>
+    </div>
+
+    <!-- Onizleme Tablosu -->
+    <div class="section">
+      <div class="section-title">Onizleme</div>
+      <input type="text" id="tablo-arama" class="search-input" placeholder="Tabloda ara...">
+      <div class="table-container">
+        <table id="onizleme-tablosu">
+          <thead>
+            <tr>
+              <th data-alan="kanalAdi">Kanal Adi</th>
+              <th data-alan="frekans">RX Frekans</th>
+              <th data-alan="txFrekans">TX Frekans</th>
+              <th data-alan="bant">Bant</th>
+              <th data-alan="digital">Mod</th>
+              <th data-alan="guc">Guc</th>
+              <th data-alan="yukseklik">Yukseklik</th>
+              <th data-alan="puan">Puan</th>
+              <th data-alan="sehir">Sehir</th>
+              <th data-alan="ilce">Ilce</th>
+              <th data-alan="konum">Konum</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Indir -->
+    <div class="section">
+      <div class="download-section">
+        <div class="channel-count">
+          Toplam Kanal: <span class="count-value" id="kanal-sayisi">0</span>
+        </div>
+        <div id="max-kanal-uyari" class="max-kanal-uyari"></div>
+        <button type="button" id="csv-indir-btn" class="btn-primary">CSV Indir</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

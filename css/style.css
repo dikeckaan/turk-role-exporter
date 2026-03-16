@@ -1,0 +1,478 @@
+/* ============================================================
+   Role-Exporter — Dark Theme CSS
+   Turkish Amateur Radio Repeater Exporter Web App
+   ============================================================ */
+
+/* ── CSS Variables ───────────────────────────────────────── */
+:root {
+  --bg:          #1a1a2e;
+  --surface:     #16213e;
+  --surface-2:   #0f3460;
+  --accent:      #e94560;
+  --text:        #eee;
+  --text-muted:  #999;
+  --success:     #4ecca3;
+  --warning:     #f0a500;
+  --error:       #e94560;
+  --border:      #2a2a4a;
+}
+
+/* ── Reset & Body ────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+/* ── Container ───────────────────────────────────────────── */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.header {
+  text-align: center;
+  padding: 20px;
+}
+
+.header h1 {
+  color: var(--accent);
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+/* ── Section ─────────────────────────────────────────────── */
+.section {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+
+/* ── Section Title ───────────────────────────────────────── */
+.section-title {
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+  color: var(--text);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── Stats Panel ─────────────────────────────────────────── */
+.stats-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+}
+
+/* ── Stat Card ───────────────────────────────────────────── */
+.stat-card {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 15px 20px;
+  text-align: center;
+  min-width: 120px;
+}
+
+.stat-card .stat-value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--accent);
+  display: block;
+}
+
+.stat-card .stat-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
+/* ── Banners ─────────────────────────────────────────────── */
+.banner {
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.banner-warning {
+  background: rgba(240, 165, 0, 0.15);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+}
+
+.banner-error {
+  background: rgba(233, 69, 96, 0.15);
+  border: 1px solid var(--error);
+  color: var(--error);
+}
+
+/* ── Map Container ───────────────────────────────────────── */
+.map-container {
+  height: 450px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* ── Filters Grid ────────────────────────────────────────── */
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+/* ── Filter Group ────────────────────────────────────────── */
+.filter-group {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.filter-group label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* ── Toggle Switch ───────────────────────────────────────── */
+.toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: #444;
+  transition: background 0.3s;
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.3s;
+}
+
+.toggle:checked {
+  background: var(--accent);
+}
+
+.toggle:checked::after {
+  left: 23px;
+}
+
+/* ── Select & Text Input ─────────────────────────────────── */
+select,
+input[type="text"] {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 100%;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+select:focus,
+input[type="text"]:focus {
+  border-color: var(--accent);
+}
+
+select option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ── Multi-Select ────────────────────────────────────────── */
+.multi-select {
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.multi-select label {
+  display: block;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.multi-select label:hover {
+  background: var(--surface);
+}
+
+/* ── Multi-Select Controls ───────────────────────────────── */
+.multi-select-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* ── Search Input ────────────────────────────────────────── */
+.search-input {
+  margin-bottom: 10px;
+}
+
+/* ── Table Container ─────────────────────────────────────── */
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+/* ── Table ───────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table th {
+  background: var(--surface-2);
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  white-space: nowrap;
+}
+
+table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+table tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+table th.sort-asc::after {
+  content: " ↑";
+}
+
+table th.sort-desc::after {
+  content: " ↓";
+}
+
+/* ── Primary Button ──────────────────────────────────────── */
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: filter 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* ── Secondary Button ────────────────────────────────────── */
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--text-muted);
+  color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 0.2s, color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-secondary:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+/* ── Small Button ────────────────────────────────────────── */
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+/* ── Download Section ────────────────────────────────────── */
+.download-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+/* ── Channel Count ───────────────────────────────────────── */
+.channel-count {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.channel-count span.count-value {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+/* ── Max Channel Warning ─────────────────────────────────── */
+.max-kanal-uyari {
+  color: var(--warning);
+  font-size: 0.9rem;
+  display: none;
+}
+
+/* ── Device Note ─────────────────────────────────────────── */
+.device-note {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-top: 5px;
+}
+
+/* ── Checkbox Group ──────────────────────────────────────── */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--surface);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.checkbox-group label:hover {
+  background: var(--surface-2);
+}
+
+/* ── Custom Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+/* ── Leaflet Overrides ───────────────────────────────────── */
+.leaflet-popup-content-wrapper {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.leaflet-popup-tip {
+  background: var(--surface) !important;
+}
+
+.ta-label {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text) !important;
+  font-weight: bold !important;
+  font-size: 14px !important;
+  text-shadow:
+    -1px -1px 0 #000,
+     1px -1px 0 #000,
+    -1px  1px 0 #000,
+     1px  1px 0 #000 !important;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-panel {
+    flex-direction: column;
+  }
+
+  .map-container {
+    height: 300px;
+  }
+
+  .download-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .download-section .btn-primary,
+  .download-section .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}
