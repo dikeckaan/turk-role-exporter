@@ -38,16 +38,20 @@ export function filtrele(roleler, filtreler, cihazProfil) {
 
   if (filtreler.taBolgeleri && filtreler.taBolgeleri.length > 0) {
     sonuc = sonuc.filter((role) =>
-      filtreler.taBolgeleri.includes(role.tabolge)
+      !role.tabolge || filtreler.taBolgeleri.includes(role.tabolge)
     );
   }
 
   if (filtreler.sehirler && filtreler.sehirler.length > 0) {
-    sonuc = sonuc.filter((role) => filtreler.sehirler.includes(role.sehir));
+    sonuc = sonuc.filter((role) =>
+      !role.sehir || filtreler.sehirler.includes(role.sehir)
+    );
   }
 
   if (filtreler.ilceler && filtreler.ilceler.length > 0) {
-    sonuc = sonuc.filter((role) => filtreler.ilceler.includes(role.ilce));
+    sonuc = sonuc.filter((role) =>
+      !role.ilce || filtreler.ilceler.includes(role.ilce)
+    );
   }
 
   if (filtreler.dusukPuanGizle) {

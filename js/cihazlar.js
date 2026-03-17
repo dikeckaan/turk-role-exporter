@@ -2,7 +2,7 @@ export const CIHAZ_PROFILLERI = {
   "quansheng-uv-k5-f4hwn": {
     ad: "Quansheng UV-K5 (F4HWN v4.3)",
     aciklama: "Custom firmware | Analog | FM/AM/USB | 18MHz-1.3GHz RX",
-    bantlar: ["VHF", "UHF"],
+    bantlar: ["VHF", "UHF", "APRS"],
     modlar: ["Analog"],
     maxKanal: 200,
     csvFormat: "chirp",
