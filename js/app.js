@@ -368,7 +368,9 @@ function cihazOpsiyonlariGuncelle() {
 function sehirListesiDoldur() {
   const container = document.getElementById("sehir-listesi");
   if (!container) return;
-  const oncekiSecili = new Set(getSeciliSehirler());
+  const eskiCheckboxlar = [...document.querySelectorAll("input[data-sehir]")];
+  const oncekiSecili = new Set(eskiCheckboxlar.filter((cb) => cb.checked).map((cb) => cb.dataset.sehir));
+  const oncekiTumu = new Set(eskiCheckboxlar.map((cb) => cb.dataset.sehir));
   const sehirler = benzersizSehirler(birlesikRoleler);
   while (container.firstChild) container.removeChild(container.firstChild);
   for (const s of sehirler) {
@@ -376,7 +378,8 @@ function sehirListesiDoldur() {
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.dataset.sehir = s;
-    cb.checked = oncekiSecili.size === 0 || oncekiSecili.has(s);
+    // First load: all checked. Later: preserve state, new cities default checked
+    cb.checked = oncekiTumu.size === 0 || oncekiSecili.has(s) || !oncekiTumu.has(s);
     cb.addEventListener("change", () => {
       ilceListesiDoldur();
       document.dispatchEvent(new CustomEvent("filtre-degisti"));

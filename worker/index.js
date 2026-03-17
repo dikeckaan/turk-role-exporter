@@ -246,10 +246,10 @@ function slugToSehir(slug) {
   if (name.startsWith("-")) name = name.slice(1);
   if (/^\d\./.test(name)) return null; // bölge pages don't have single city
 
-  // Special mappings
+  // Special mappings — align with amatortelsizcilik.com.tr naming
   const map = {
     "k.maras": "kahramanmaras",
-    "sanliurfa": "sanliurfa",
+    "sparta": "isparta",
   };
   return map[name] || name;
 }
