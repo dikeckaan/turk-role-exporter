@@ -38,13 +38,13 @@ export function filtrele(roleler, filtreler, cihazProfil) {
 
   if (filtreler.taBolgeleri && filtreler.taBolgeleri.length > 0) {
     sonuc = sonuc.filter((role) =>
-      !role.tabolge || filtreler.taBolgeleri.includes(role.tabolge)
+      filtreler.taBolgeleri.includes(role.tabolge)
     );
   }
 
   if (filtreler.sehirler && filtreler.sehirler.length > 0) {
     sonuc = sonuc.filter((role) =>
-      !role.sehir || filtreler.sehirler.includes(role.sehir)
+      filtreler.sehirler.includes(role.sehir)
     );
   }
 

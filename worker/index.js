@@ -148,13 +148,43 @@ const SPECIAL_SLUGS = new Set([
 
 function getLinksFromSection(sectionHtml) {
   if (!sectionHtml) return [];
-  const regex = /href="(?:https?:\/\/(?:www\.)?ta-role\.com\/)?([^"]+\.html)"/gi;
+  const linkRegex = /href="(?:https?:\/\/(?:www\.)?ta-role\.com\/)?([^"]+\.html)"/gi;
   const links = [];
   let m;
-  while ((m = regex.exec(sectionHtml)) !== null) {
+  while ((m = linkRegex.exec(sectionHtml)) !== null) {
     links.push(m[1]);
   }
   return links;
+}
+
+/**
+ * Extracts links WITH TA bölge assignment from a nav section.
+ * Detects "N.Bölge" sub-headers and assigns tabolge to links that follow.
+ */
+function getLinksWithBolge(sectionHtml) {
+  if (!sectionHtml) return [];
+
+  // Collect bölge markers: >1.Bölge< or >1.Bolge< etc.
+  const bolgeMarkers = [];
+  const bolgeRe = />(\d)\.B[öo]lge</gi;
+  let bm;
+  while ((bm = bolgeRe.exec(sectionHtml)) !== null) {
+    bolgeMarkers.push({ pos: bm.index, bolge: bm[1] });
+  }
+
+  // Collect links with positions
+  const linkRegex = /href="(?:https?:\/\/(?:www\.)?ta-role\.com\/)?([^"]+\.html)"/gi;
+  const results = [];
+  let lm;
+  while ((lm = linkRegex.exec(sectionHtml)) !== null) {
+    // Find the bölge this link falls under (last marker before this link)
+    let bolge = "0";
+    for (const marker of bolgeMarkers) {
+      if (marker.pos < lm.index) bolge = marker.bolge;
+    }
+    results.push({ slug: lm[1], tabolge: "TA" + bolge });
+  }
+  return results;
 }
 
 function findSectionIndex(html, text) {
@@ -176,10 +206,10 @@ function discoverPages(html) {
   if (vhfIdx !== -1 && uhfIdx !== -1) {
     const section = html.slice(vhfIdx, uhfIdx);
     const seen = new Set();
-    for (const slug of getLinksFromSection(section)) {
+    for (const { slug, tabolge } of getLinksWithBolge(section)) {
       if (SPECIAL_SLUGS.has(slug) || seen.has(slug)) continue;
       seen.add(slug);
-      result.vhfPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug) });
+      result.vhfPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug), tabolge });
     }
   }
 
@@ -187,10 +217,10 @@ function discoverPages(html) {
     const end = digitalFallback !== -1 ? digitalFallback : html.length;
     const section = html.slice(uhfIdx, end);
     const seen = new Set();
-    for (const slug of getLinksFromSection(section)) {
+    for (const { slug, tabolge } of getLinksWithBolge(section)) {
       if (SPECIAL_SLUGS.has(slug) || seen.has(slug)) continue;
       seen.add(slug);
-      result.uhfPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug) });
+      result.uhfPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug), tabolge });
     }
   }
 
@@ -209,7 +239,8 @@ function discoverPages(html) {
       } else if (slug === "geni--hs.html" || slug === "dmr-id-list.html") {
         result.otherPages[slug.replace(".html", "")] = TAROLE_BASE + "/" + slug;
       } else if (!SPECIAL_SLUGS.has(slug)) {
-        result.dmrPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug) });
+        const bolge = slug.match(/(\d)\.boelge/)?.[1] || "0";
+        result.dmrPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug), tabolge: "TA" + bolge });
       }
     }
   }
@@ -314,7 +345,7 @@ function detectTableType(rows) {
  * Columns: MEVKİ | TX Frekansı | RX Frekansı | TX Tone | RX Tone
  * NOTE: TX/RX from repeater perspective → swap for radio perspective.
  */
-function parseAnalogRows(rows, sehir, bant) {
+function parseAnalogRows(rows, sehir, bant, tabolge) {
   const roleler = [];
 
   for (const cells of rows) {
@@ -343,6 +374,7 @@ function parseAnalogRows(rows, sehir, bant) {
       ton: tone,
       digital: 0,
       durum: true,
+      tabolge: tabolge || "",
     });
   }
   return roleler;
@@ -352,7 +384,7 @@ function parseAnalogRows(rows, sehir, bant) {
  * Parses DMR/Digital table.
  * Columns: MEVKİ | TX Frekansı | RX Frekansı | Time Slot
  */
-function parseDmrRows(rows, taBolge) {
+function parseDmrRows(rows, tabolge) {
   const roleler = [];
 
   for (const cells of rows) {
@@ -391,7 +423,7 @@ function parseDmrRows(rows, taBolge) {
       durum: true,
       timeSlot: ts,
       dijitalMod: isC4FM ? "C4FM" : "DMR",
-      taBolge,
+      tabolge: tabolge || "",
     });
   }
   return roleler;
@@ -400,7 +432,7 @@ function parseDmrRows(rows, taBolge) {
 /**
  * Smart parser: detects table type from headers and delegates.
  */
-function parsePageTable(html, slug, forcedBant) {
+function parsePageTable(html, slug, forcedBant, tabolge) {
   const rows = extractTableRows(html);
   if (rows.length === 0) return [];
 
@@ -409,16 +441,15 @@ function parsePageTable(html, slug, forcedBant) {
 
   if (tableType === "analog" || forcedBant) {
     const bant = forcedBant || (slug.includes("-1") ? "UHF" : "VHF");
-    return parseAnalogRows(rows, sehir, bant);
+    return parseAnalogRows(rows, sehir, bant, tabolge);
   }
 
   if (tableType === "dmr") {
-    const bolge = slug.match(/(\d)\.boelge/)?.[1] || "";
-    return parseDmrRows(rows, bolge);
+    return parseDmrRows(rows, tabolge);
   }
 
   // Fallback: try analog
-  return parseAnalogRows(rows, sehir, forcedBant || "VHF");
+  return parseAnalogRows(rows, sehir, forcedBant || "VHF", tabolge);
 }
 
 // ─── Talk Groups & Simplex parsers ───────────────────────────────────────────
@@ -594,44 +625,33 @@ async function handleTaroleRoleler(request, ctx) {
     const pages = discoverPages(indexHtml);
     const allRoleler = [];
 
+    let pageList;
+    let forcedBant;
     if (part === "vhf1") {
       const half = Math.ceil(pages.vhfPages.length / 2);
-      const slice = pages.vhfPages.slice(0, half);
-      const results = await batchFetch(slice, 6);
-      for (const { slug, html } of results) {
-        if (!html) continue;
-        allRoleler.push(...parsePageTable(html, slug, "VHF"));
-      }
+      pageList = pages.vhfPages.slice(0, half);
+      forcedBant = "VHF";
     } else if (part === "vhf2") {
       const half = Math.ceil(pages.vhfPages.length / 2);
-      const slice = pages.vhfPages.slice(half);
-      const results = await batchFetch(slice, 6);
-      for (const { slug, html } of results) {
-        if (!html) continue;
-        allRoleler.push(...parsePageTable(html, slug, "VHF"));
-      }
+      pageList = pages.vhfPages.slice(half);
+      forcedBant = "VHF";
     } else if (part === "uhf1") {
       const half = Math.ceil(pages.uhfPages.length / 2);
-      const slice = pages.uhfPages.slice(0, half);
-      const results = await batchFetch(slice, 6);
-      for (const { slug, html } of results) {
-        if (!html) continue;
-        allRoleler.push(...parsePageTable(html, slug, "UHF"));
-      }
+      pageList = pages.uhfPages.slice(0, half);
+      forcedBant = "UHF";
     } else if (part === "uhf2") {
       const half = Math.ceil(pages.uhfPages.length / 2);
-      const slice = pages.uhfPages.slice(half);
-      const results = await batchFetch(slice, 6);
-      for (const { slug, html } of results) {
-        if (!html) continue;
-        allRoleler.push(...parsePageTable(html, slug, "UHF"));
-      }
+      pageList = pages.uhfPages.slice(half);
+      forcedBant = "UHF";
     } else if (part === "dmr") {
-      const results = await batchFetch(pages.dmrPages, 6);
-      for (const { slug, html } of results) {
-        if (!html) continue;
-        allRoleler.push(...parsePageTable(html, slug, null));
-      }
+      pageList = pages.dmrPages;
+      forcedBant = null;
+    }
+
+    const results = await batchFetch(pageList, 6);
+    for (const { slug, html, tabolge } of results) {
+      if (!html) continue;
+      allRoleler.push(...parsePageTable(html, slug, forcedBant, tabolge));
     }
 
     return deduplicateRoleler(allRoleler);
