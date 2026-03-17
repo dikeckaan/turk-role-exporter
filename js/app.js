@@ -19,12 +19,17 @@ import {
   sehirdenFmKey,
 } from "./frekanslar.js";
 
-let tumRoleler = [];
+// ─── State ────────────────────────────────────────────────
+// Keep original sources SEPARATE — never overwrite them
+let amatortelsizcilikRoleler = [];
 let taroleRoleler = [];
+
+// Merged view used by filters/table/map
+let birlesikRoleler = [];
 let filtrelenmisRoleler = [];
 let seciliCihaz = "quansheng-uv-k5-f4hwn";
 
-// Track which sources are loaded
+// Track loading state
 let amatortelsizcilikYuklendi = false;
 let taroleYuklendi = false;
 
@@ -34,12 +39,10 @@ async function basla() {
   tabloBasliklariAyarla();
   dinleyicileriKur();
 
-  // Load primary source if enabled
-  if (kaynakAktifMi("amatortelsizcilik")) {
-    await amatortelsizcilikYukle();
-  }
+  // Always load primary source first
+  await amatortelsizcilikYukle();
 
-  // Load ta-role in background if enabled
+  // Load ta-role in background if its toggle is on
   if (kaynakAktifMi("tarole")) {
     taroleYukle();
   }
@@ -60,21 +63,22 @@ function kaynakAktifMi(kaynak) {
 async function amatortelsizcilikYukle() {
   try {
     const { data, fallback } = await roleleriGetir();
-    tumRoleler = data;
+    amatortelsizcilikRoleler = data;
     amatortelsizcilikYuklendi = true;
     if (fallback) {
       bannerGoster(
         "warning",
-        "API hatasi ile karsilasildi. Fallback surum kullanilmaktadir."
+        "API hatasi — fallback surum kullaniliyor."
       );
     }
+    kaynaklariMergeEt();
     sehirListesiDoldur();
     taBolgesiDoldur();
     uygula();
   } catch {
     bannerGoster(
       "error",
-      "Sunucuya erisilemiyor. Lutfen internet baglantinizi kontrol edin."
+      "Sunucuya erisilemiyor. Internet baglantinizi kontrol edin."
     );
   }
 }
@@ -85,6 +89,8 @@ async function taroleYukle() {
     taroleYuklendi = taroleRoleler.length > 0;
     if (taroleYuklendi) {
       kaynaklariMergeEt();
+      sehirListesiDoldur();
+      taBolgesiDoldur();
       uygula();
     }
   } catch {
@@ -93,59 +99,50 @@ async function taroleYukle() {
 }
 
 /**
- * Merges data from all active sources, avoiding duplicates.
+ * Merges active sources into birlesikRoleler.
+ * NEVER mutates the original source arrays.
  */
 function kaynaklariMergeEt() {
-  const birlesik = [];
+  const sonuc = [];
   const gorulen = new Set();
 
-  // Add amatortelsizcilik data first (primary)
-  if (kaynakAktifMi("amatortelsizcilik") && amatortelsizcilikYuklendi) {
-    for (const r of tumRoleler) {
-      const key = `${r.frekans || r.frequency || ""}_${(r.konum || r.location || "").slice(0, 8)}`;
-      if (!gorulen.has(key)) {
-        gorulen.add(key);
-        birlesik.push(r);
-      }
-    }
+  function ekle(role) {
+    const frek = role.frekans || role.frequency || "";
+    const yer = (role.konum || role.location || "").toLowerCase().slice(0, 10);
+    const key = `${frek}_${yer}`;
+    if (gorulen.has(key)) return;
+    gorulen.add(key);
+    sonuc.push(role);
   }
 
-  // Add ta-role data (secondary, only non-duplicates)
-  if (kaynakAktifMi("tarole") && taroleYuklendi) {
-    for (const r of taroleRoleler) {
-      const key = `${r.frekans || ""}_${(r.konum || "").slice(0, 8)}`;
-      if (!gorulen.has(key)) {
-        gorulen.add(key);
-        birlesik.push(r);
-      }
-    }
+  // Primary source
+  if (kaynakAktifMi("amatortelsizcilik")) {
+    for (const r of amatortelsizcilikRoleler) ekle(r);
   }
 
-  // If only one source is active, display appropriately
-  if (!kaynakAktifMi("amatortelsizcilik") && kaynakAktifMi("tarole")) {
-    tumRoleler = taroleRoleler;
-  } else if (birlesik.length > 0) {
-    tumRoleler = birlesik;
+  // Secondary source (deduped against primary)
+  if (kaynakAktifMi("tarole")) {
+    for (const r of taroleRoleler) ekle(r);
   }
 
+  birlesikRoleler = sonuc;
   istatistikleriGuncelle();
 }
 
 async function kaynakDegisti() {
   bannerGizle();
 
-  // Reload sources as needed
+  // Load sources that aren't loaded yet
   if (kaynakAktifMi("amatortelsizcilik") && !amatortelsizcilikYuklendi) {
     await amatortelsizcilikYukle();
+    return; // amatortelsizcilikYukle already calls merge + uygula
   }
   if (kaynakAktifMi("tarole") && !taroleYuklendi) {
-    taroleYukle();
+    taroleYukle(); // async, will call merge + uygula when done
   }
 
-  // Rebuild merged data
+  // Re-merge with current toggle state
   kaynaklariMergeEt();
-
-  // Rebuild city/region lists
   sehirListesiDoldur();
   taBolgesiDoldur();
   uygula();
@@ -179,7 +176,7 @@ function fmBilgiGuncelle() {
   if (fmSehirler.length === 0) {
     bilgiEl.textContent = "Secili sehirlerde FM verisi bulunamadi.";
   } else {
-    bilgiEl.textContent = `FM istasyonlari: ${fmSehirler.join(", ")} (otomatik)`;
+    bilgiEl.textContent = `FM: ${fmSehirler.join(", ")} (otomatik)`;
   }
 }
 
@@ -203,6 +200,7 @@ function cihazSeciciDoldur() {
     cihazOpsiyonlariGuncelle();
     uygula();
   });
+  cihazFiltreleriGuncelle();
   cihazBilgiGuncelle();
   gucSeciciGuncelle();
   cihazOpsiyonlariGuncelle();
@@ -317,18 +315,23 @@ function cihazOpsiyonlariGuncelle() {
   const dijitalVar = profil.modlar.includes("Dijital");
   const ek = profil.ekOzellikler || {};
 
+  // dPMR — only for digital devices
   const dpmrGroup = document.getElementById("opsiyon-dpmr-group");
   if (dpmrGroup) dpmrGroup.style.display = dijitalVar ? "" : "none";
 
+  // FM Radio
   const fmGroup = document.getElementById("opsiyon-fmradyo-group");
   if (fmGroup) fmGroup.style.display = ek.fmRadyo ? "" : "none";
 
+  // Airband
   const airGroup = document.getElementById("opsiyon-airband-group");
   if (airGroup) airGroup.style.display = ek.airBand ? "" : "none";
 
+  // Marine Band
   const marineGroup = document.getElementById("opsiyon-marine-group");
   if (marineGroup) marineGroup.style.display = ek.marineBand ? "" : "none";
 
+  // Digital Simplex — show for all devices
   const simplexGroup = document.getElementById("opsiyon-simplex-group");
   if (simplexGroup) simplexGroup.style.display = "";
 }
@@ -338,7 +341,10 @@ function cihazOpsiyonlariGuncelle() {
 function sehirListesiDoldur() {
   const container = document.getElementById("sehir-listesi");
   if (!container) return;
-  const sehirler = benzersizSehirler(tumRoleler);
+
+  // Remember currently checked cities
+  const oncekiSecili = new Set(getSeciliSehirler());
+  const sehirler = benzersizSehirler(birlesikRoleler);
 
   while (container.firstChild) container.removeChild(container.firstChild);
 
@@ -347,7 +353,8 @@ function sehirListesiDoldur() {
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.dataset.sehir = s;
-    cb.checked = true;
+    // Preserve previous selection if exists, otherwise default checked
+    cb.checked = oncekiSecili.size === 0 || oncekiSecili.has(s);
     cb.addEventListener("change", () => {
       ilceListesiDoldur();
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
@@ -363,7 +370,7 @@ function ilceListesiDoldur() {
   const container = document.getElementById("ilce-listesi");
   if (!container) return;
   const seciliSehirler = getSeciliSehirler();
-  const ilceler = benzersizIlceler(tumRoleler, seciliSehirler);
+  const ilceler = benzersizIlceler(birlesikRoleler, seciliSehirler);
 
   while (container.firstChild) container.removeChild(container.firstChild);
 
@@ -385,7 +392,7 @@ function ilceListesiDoldur() {
 function taBolgesiDoldur() {
   const container = document.getElementById("ta-bolge-listesi");
   if (!container) return;
-  const bolgeler = benzersizTaBolgeleri(tumRoleler);
+  const bolgeler = benzersizTaBolgeleri(birlesikRoleler);
 
   while (container.firstChild) container.removeChild(container.firstChild);
 
@@ -452,7 +459,7 @@ function opsiyonTopla() {
     pmrEkle: document.getElementById("opsiyon-pmr")?.checked ?? false,
     dpmrEkle: document.getElementById("opsiyon-dpmr")?.checked ?? false,
     fmRadyoEkle: document.getElementById("opsiyon-fmradyo")?.checked ?? false,
-    fmSehirler: fmSehirleriBelirle(), // auto from city filter
+    fmSehirler: fmSehirleriBelirle(),
     airbandEkle: document.getElementById("opsiyon-airband")?.checked ?? false,
     marineEkle: document.getElementById("opsiyon-marine")?.checked ?? false,
     simplexEkle: document.getElementById("opsiyon-simplex")?.checked ?? false,
@@ -474,7 +481,7 @@ function uygula() {
   if (!profil) return;
 
   const filtreler = filtreTopla();
-  filtrelenmisRoleler = filtrele(tumRoleler, filtreler, profil);
+  filtrelenmisRoleler = filtrele(birlesikRoleler, filtreler, profil);
 
   if (filtreler.mod === "dijital-oncelikli") {
     filtrelenmisRoleler.sort((a, b) => {
@@ -485,15 +492,13 @@ function uygula() {
   }
 
   const opsiyonlar = opsiyonTopla();
-
-  // Update FM info text
   fmBilgiGuncelle();
 
   tabloGuncelle(filtrelenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama);
   pinleriGuncelle(filtrelenmisRoleler);
   istatistikleriGuncelle();
 
-  // ── Channel limit check with breakdown ──
+  // ── Channel limit check ──
   const ekSayisi = ekKanalSayisi(opsiyonlar);
   const toplamKanal = filtrelenmisRoleler.length + ekSayisi;
 
@@ -512,10 +517,10 @@ function uygula() {
       const fazla = toplamKanal - profil.maxKanal;
       const dagilim = kanalDagilimi(filtrelenmisRoleler.length, opsiyonlar);
 
-      let html = `<strong>${profil.ad}</strong> maksimum <strong>${profil.maxKanal}</strong> kanal destekler. `;
-      html += `Secili ayarlarla <strong>${toplamKanal}</strong> kanal olusur — <strong>${fazla}</strong> kanal fazla!`;
+      let html = `<strong>${profil.ad}</strong> max <strong>${profil.maxKanal}</strong> kanal. `;
+      html += `Toplam <strong>${toplamKanal}</strong> — <strong>${fazla}</strong> fazla!`;
       html += `<div class="kanal-dagilimi">`;
-      html += `<div class="kanal-dagilimi-baslik">Kanal Dagilimi — cikarilacak opsiyonlari seciniz:</div>`;
+      html += `<div class="kanal-dagilimi-baslik">Kanal Dagilimi:</div>`;
       for (const item of dagilim) {
         html += `<div class="kanal-dagilimi-satir">`;
         html += `<span class="kanal-ad">${item.ad}${item.zorunlu ? "" : " ✕"}</span>`;
@@ -525,8 +530,7 @@ function uygula() {
       html += `<div class="kanal-dagilimi-toplam">`;
       html += `<span>Toplam</span>`;
       html += `<span>${toplamKanal} / ${profil.maxKanal}</span>`;
-      html += `</div>`;
-      html += `</div>`;
+      html += `</div></div>`;
 
       maxUyari.innerHTML = html;
       maxUyari.style.display = "block";
@@ -544,13 +548,14 @@ function uygula() {
 }
 
 function istatistikleriGuncelle() {
-  const toplam = tumRoleler.length;
-  const aktif = tumRoleler.filter((r) => r.durum === true).length;
+  const veri = birlesikRoleler;
+  const toplam = veri.length;
+  const aktif = veri.filter((r) => r.durum === true).length;
   const pasif = toplam - aktif;
-  const vhf = tumRoleler.filter((r) => r.bant === "VHF").length;
-  const uhf = tumRoleler.filter((r) => r.bant === "UHF").length;
-  const aprs = tumRoleler.filter((r) => r.bant === "APRS").length;
-  const dijital = tumRoleler.filter(
+  const vhf = veri.filter((r) => r.bant === "VHF").length;
+  const uhf = veri.filter((r) => r.bant === "UHF").length;
+  const aprs = veri.filter((r) => r.bant === "APRS").length;
+  const dijital = veri.filter(
     (r) => r.digital === 1 || r.digital === 2
   ).length;
 
@@ -575,7 +580,6 @@ function istatistikleriGuncelle() {
 function dinleyicileriKur() {
   document.addEventListener("filtre-degisti", () => uygula());
 
-  // Regular filter toggles
   const toggleIds = [
     "filtre-aktif",
     "filtre-ruhsat",
@@ -594,7 +598,7 @@ function dinleyicileriKur() {
     });
   });
 
-  // Data source toggles — trigger reload
+  // Data source toggles
   ["kaynak-amatortelsizcilik", "kaynak-tarole"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       kaynakDegisti();
@@ -622,25 +626,18 @@ function dinleyicileriKur() {
   document.getElementById("sehir-arama")?.addEventListener("input", (e) => {
     const q = e.target.value.toLowerCase();
     document.querySelectorAll("#sehir-listesi label").forEach((label) => {
-      label.style.display = label.textContent.toLowerCase().includes(q)
-        ? ""
-        : "none";
+      label.style.display = label.textContent.toLowerCase().includes(q) ? "" : "none";
     });
   });
 
-  document
-    .getElementById("sehir-tumunu-sec")
-    ?.addEventListener("click", () => {
-      document
-        .querySelectorAll("input[data-sehir]")
-        .forEach((cb) => (cb.checked = true));
-      ilceListesiDoldur();
-      document.dispatchEvent(new CustomEvent("filtre-degisti"));
-    });
+  document.getElementById("sehir-tumunu-sec")?.addEventListener("click", () => {
+    document.querySelectorAll("input[data-sehir]").forEach((cb) => (cb.checked = true));
+    ilceListesiDoldur();
+    document.dispatchEvent(new CustomEvent("filtre-degisti"));
+  });
+
   document.getElementById("sehir-temizle")?.addEventListener("click", () => {
-    document
-      .querySelectorAll("input[data-sehir]")
-      .forEach((cb) => (cb.checked = false));
+    document.querySelectorAll("input[data-sehir]").forEach((cb) => (cb.checked = false));
     ilceListesiDoldur();
     document.dispatchEvent(new CustomEvent("filtre-degisti"));
   });
@@ -661,12 +658,10 @@ function dinleyicileriKur() {
 function bannerGoster(tip, mesaj) {
   const container = document.getElementById("banner-container");
   if (!container) return;
-
   while (container.firstChild) container.removeChild(container.firstChild);
 
   const banner = document.createElement("div");
   banner.className = "banner banner-" + tip;
-
   const span = document.createElement("span");
   span.textContent = mesaj;
   banner.appendChild(span);
@@ -676,28 +671,20 @@ function bannerGoster(tip, mesaj) {
   btn.textContent = "Tekrar Dene";
   btn.addEventListener("click", tekrarDene);
   banner.appendChild(btn);
-
   container.appendChild(banner);
 }
 
 function bannerGizle() {
   const container = document.getElementById("banner-container");
-  if (container) {
-    while (container.firstChild) container.removeChild(container.firstChild);
-  }
+  if (container) while (container.firstChild) container.removeChild(container.firstChild);
 }
 
 async function tekrarDene() {
   bannerGizle();
   amatortelsizcilikYuklendi = false;
   taroleYuklendi = false;
-
-  if (kaynakAktifMi("amatortelsizcilik")) {
-    await amatortelsizcilikYukle();
-  }
-  if (kaynakAktifMi("tarole")) {
-    taroleYukle();
-  }
+  await amatortelsizcilikYukle();
+  if (kaynakAktifMi("tarole")) taroleYukle();
 }
 
 document.addEventListener("DOMContentLoaded", basla);

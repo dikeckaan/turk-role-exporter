@@ -20,7 +20,12 @@ export function filtrele(roleler, filtreler, cihazProfil) {
     }
   }
 
-  if (filtreler.mod === "sadece-analog") {
+  // Cihaz mod kısıtlaması: analog cihaz → dijital röleler hariç
+  const cihazDijitalDestekli = cihazProfil.modlar.includes("Dijital");
+  const cihazAnalogDestekli = cihazProfil.modlar.includes("Analog");
+
+  if (filtreler.mod === "sadece-analog" || (!cihazDijitalDestekli && cihazAnalogDestekli)) {
+    // Analog-only device OR explicitly selected analog-only
     sonuc = sonuc.filter(
       (role) => role.digital === 0 || role.digital === null || !role.digital
     );
@@ -29,7 +34,7 @@ export function filtrele(roleler, filtreler, cihazProfil) {
       (role) => role.digital === 1 || role.digital === 2
     );
   }
-  // "hepsi" ve "dijital-oncelikli" için filtreleme yapılmaz
+  // "hepsi" ve "dijital-oncelikli": cihaz her iki modu destekliyorsa filtreleme yok
 
   if (filtreler.taBolgeleri && filtreler.taBolgeleri.length > 0) {
     sonuc = sonuc.filter((role) =>
