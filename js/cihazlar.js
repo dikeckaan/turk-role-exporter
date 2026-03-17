@@ -43,7 +43,7 @@ export const CIHAZ_PROFILLERI = {
   "tyt-md-uv390-plus": {
     ad: "TYT MD-UV390 Plus",
     aciklama: "DMR Dijital + Analog | VHF/UHF",
-    bantlar: ["VHF", "UHF"],
+    bantlar: ["VHF", "UHF", "APRS"],
     modlar: ["Analog", "Dijital"],
     maxKanal: 3000,
     csvFormat: "cps",
