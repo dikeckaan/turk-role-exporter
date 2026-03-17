@@ -142,21 +142,23 @@ async function taroleYukle() {
 
 function kaynaklariMergeEt() {
   const sonuc = [];
-  const gorulen = new Set();
+  const gorulenFrekSehir = new Set();
 
   function ekle(role) {
     const frek = role.frekans || role.frequency || "";
-    const yer = (role.konum || role.location || "").toLowerCase().slice(0, 10);
-    const key = `${frek}_${yer}`;
-    if (gorulen.has(key)) return;
-    gorulen.add(key);
+    const sehir = (role.sehir || role.city || "").toLowerCase();
+    const key = frek + "_" + sehir;
+    if (gorulenFrekSehir.has(key)) return;
+    gorulenFrekSehir.add(key);
     sonuc.push(role);
   }
 
+  // amatortelsizcilik first — naming priority
   if (kaynakAktifMi("amatortelsizcilik")) {
     for (const r of amatortelsizcilikRoleler) ekle(r);
   }
 
+  // tarole second — only adds entries not already in amatortelsizcilik
   if (kaynakAktifMi("tarole")) {
     for (const r of taroleRoleler) ekle(r);
   }

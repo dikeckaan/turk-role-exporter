@@ -9,6 +9,7 @@
  *   GET /api/tarole/roleler     → dynamic scrape VHF/UHF/DMR pages (1hr cache)
  *   GET /api/tarole/talkgruplar → scrape talk-gruplar page (1hr cache)
  *   GET /api/tarole/simplex     → scrape simplex page (1hr cache)
+ *   GET /api/tarole/debug       → diagnostic info (no cache)
  */
 
 const CORS_HEADERS = {
@@ -21,6 +22,7 @@ const UPSTREAM_URL = "https://amatortelsizcilik.com.tr/roleler/data.json";
 const CACHE_TTL = 600; // 10 min
 const TAROLE_CACHE_TTL = 3600; // 1 hr
 const TAROLE_BASE = "https://www.ta-role.com";
+const FETCH_TIMEOUT = 20000; // 20s per page
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,8 @@ export default {
         return handleTaroleTalkGruplar(request, ctx);
       case "/api/tarole/simplex":
         return handleTaroleSimplex(request, ctx);
+      case "/api/tarole/debug":
+        return handleTaroleDebug();
       default:
         return jsonResponse({ hata: "Bulunamadi" }, 404);
     }
@@ -59,17 +63,25 @@ function jsonResponse(data, status = 200, cacheTtl = 0) {
   return new Response(JSON.stringify(data), { status, headers });
 }
 
-async function fetchPage(url) {
-  try {
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "RoleExporter-Worker/2.0" },
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!resp.ok) return null;
-    return await resp.text();
-  } catch {
-    return null;
+async function fetchPage(url, retries = 0) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; RoleExporter/2.0)",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Language": "tr-TR,tr;q=0.9",
+        },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT),
+      });
+      if (!resp.ok) return null;
+      return await resp.text();
+    } catch {
+      if (attempt < retries) continue;
+      return null;
+    }
   }
+  return null;
 }
 
 // ─── Upstream proxy ──────────────────────────────────────────────────────────
@@ -129,88 +141,75 @@ async function handleRoleler(request, ctx) {
 // Dynamic ta-role.com discovery & scraping
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * STEP 1: Discover all page URLs from ta-role.com's own navigation menu.
- *
- * The site's <nav> / hamburger menu contains 3 main sections:
- *   - "VHF Analog" section  → city pages with VHF repeater tables
- *   - "UHF Analog" section  → city pages with UHF repeater tables
- *   - "Digital Röleler" section → bölge pages + talk-gruplar + simplex etc.
- *
- * All internal links are <a href="https://www.ta-role.com/xxx.html">
- *
- * We fetch index.html once, parse all internal links, and categorize them
- * by the section they appear in.
- */
+const SPECIAL_SLUGS = new Set([
+  "index.html", "talk-gruplar.html", "simplex.html",
+  "geni--hs.html", "dmr-id-list.html", "ileti-im.html",
+]);
+
+function getLinksFromSection(sectionHtml) {
+  if (!sectionHtml) return [];
+  const regex = /href="(?:https?:\/\/(?:www\.)?ta-role\.com\/)?([^"]+\.html)"/gi;
+  const links = [];
+  let m;
+  while ((m = regex.exec(sectionHtml)) !== null) {
+    links.push(m[1]);
+  }
+  return links;
+}
+
+function findSectionIndex(html, text) {
+  let idx = html.indexOf(">" + text + "<");
+  if (idx !== -1) return idx;
+  const re = new RegExp(">\\s*" + text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*<", "i");
+  const match = html.match(re);
+  return match ? match.index : -1;
+}
+
 function discoverPages(html) {
-  const result = {
-    vhfPages: [],
-    uhfPages: [],
-    dmrPages: [],
-    otherPages: {}
-  };
+  const result = { vhfPages: [], uhfPages: [], dmrPages: [], otherPages: {} };
 
-  const SPECIAL_SLUGS = new Set([
-    "index.html", "talk-gruplar.html", "simplex.html",
-    "geni--hs.html", "dmr-id-list.html", "iletisim.html",
-  ]);
+  const vhfIdx = findSectionIndex(html, "VHF Analog");
+  const uhfIdx = findSectionIndex(html, "UHF Analog");
+  const digitalIdx = findSectionIndex(html, "Digital Röleler");
+  const digitalFallback = digitalIdx !== -1 ? digitalIdx : findSectionIndex(html, "Digital");
 
-  const getLinks = (sectionHtml) => {
-    if (!sectionHtml) return [];
-    // Matches relative href="istanbul.html" or absolute href="https://www.ta-role.com/istanbul.html"
-    const regex = /href="(?:https?:\/\/www\.ta-role\.com\/)?([^"]+\.html)"/gi;
-    const links = [];
-    let m;
-    while ((m = regex.exec(sectionHtml)) !== null) {
-      links.push(m[1]);
-    }
-    return links;
-  };
-
-  const vhfIdx = html.indexOf(">VHF Analog<");
-  const uhfIdx = html.indexOf(">UHF Analog<");
-  const digitalIdx = html.indexOf(">Digital R");
-  const actualDigitalIdx = digitalIdx !== -1 ? digitalIdx : (html.indexOf(">Digital<") || -1);
-
-  // VHF section
   if (vhfIdx !== -1 && uhfIdx !== -1) {
-    const vhfSection = html.slice(vhfIdx, uhfIdx);
+    const section = html.slice(vhfIdx, uhfIdx);
     const seen = new Set();
-    for (const slug of getLinks(vhfSection)) {
+    for (const slug of getLinksFromSection(section)) {
       if (SPECIAL_SLUGS.has(slug) || seen.has(slug)) continue;
       seen.add(slug);
-      result.vhfPages.push({ url: `${TAROLE_BASE}/${slug}`, slug, label: slugToLabel(slug) });
+      result.vhfPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug) });
     }
   }
 
-  // UHF section
   if (uhfIdx !== -1) {
-    const uhfEnd = actualDigitalIdx !== -1 ? actualDigitalIdx : html.length;
-    const uhfSection = html.slice(uhfIdx, uhfEnd);
+    const end = digitalFallback !== -1 ? digitalFallback : html.length;
+    const section = html.slice(uhfIdx, end);
     const seen = new Set();
-    for (const slug of getLinks(uhfSection)) {
+    for (const slug of getLinksFromSection(section)) {
       if (SPECIAL_SLUGS.has(slug) || seen.has(slug)) continue;
       seen.add(slug);
-      result.uhfPages.push({ url: `${TAROLE_BASE}/${slug}`, slug, label: slugToLabel(slug) });
+      result.uhfPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug) });
     }
   }
 
-  // Digital section
-  if (actualDigitalIdx !== -1) {
-    const digitalSection = html.slice(actualDigitalIdx);
+  if (digitalFallback !== -1) {
+    const afterDigital = html.slice(digitalFallback);
+    const nextTopLi = afterDigital.indexOf("ileti-im.html");
+    const section = nextTopLi !== -1 ? afterDigital.slice(0, nextTopLi) : afterDigital.slice(0, 3000);
     const seen = new Set();
-    for (const slug of getLinks(digitalSection)) {
+    for (const slug of getLinksFromSection(section)) {
       if (seen.has(slug)) continue;
       seen.add(slug);
-
       if (slug === "talk-gruplar.html") {
-        result.otherPages.talkGruplar = `${TAROLE_BASE}/${slug}`;
+        result.otherPages.talkGruplar = TAROLE_BASE + "/" + slug;
       } else if (slug === "simplex.html") {
-        result.otherPages.simplex = `${TAROLE_BASE}/${slug}`;
+        result.otherPages.simplex = TAROLE_BASE + "/" + slug;
       } else if (slug === "geni--hs.html" || slug === "dmr-id-list.html") {
-        result.otherPages[slug.replace(".html", "")] = `${TAROLE_BASE}/${slug}`;
+        result.otherPages[slug.replace(".html", "")] = TAROLE_BASE + "/" + slug;
       } else if (!SPECIAL_SLUGS.has(slug)) {
-        result.dmrPages.push({ url: `${TAROLE_BASE}/${slug}`, slug, label: slugToLabel(slug) });
+        result.dmrPages.push({ url: TAROLE_BASE + "/" + slug, slug, label: slugToLabel(slug) });
       }
     }
   }
@@ -522,9 +521,17 @@ function deduplicateRoleler(roleler) {
 
 // ─── Cached handler wrapper ──────────────────────────────────────────────────
 
+function isEmptyResult(data) {
+  if (Array.isArray(data)) return data.length === 0;
+  if (data && typeof data === "object") {
+    return Object.values(data).every((v) => Array.isArray(v) && v.length === 0);
+  }
+  return !data;
+}
+
 async function cachedHandler(cacheId, ctx, producer) {
   const cache = caches.default;
-  const cacheUrl = `${TAROLE_BASE}/__cache__/${cacheId}`;
+  const cacheUrl = TAROLE_BASE + "/__cache__/" + cacheId;
   const cacheKey = new Request(cacheUrl, { method: "GET" });
 
   const cached = await cache.match(cacheKey);
@@ -535,14 +542,18 @@ async function cachedHandler(cacheId, ctx, producer) {
   }
 
   const data = await producer();
-  const body = JSON.stringify(data);
 
-  const resp = new Response(body, {
+  // Never cache empty results — likely a transient fetch failure
+  if (isEmptyResult(data)) {
+    return jsonResponse(data, 200);
+  }
+
+  const resp = new Response(JSON.stringify(data), {
     status: 200,
     headers: {
       ...CORS_HEADERS,
       "Content-Type": "application/json",
-      "Cache-Control": `public, max-age=${TAROLE_CACHE_TTL}`,
+      "Cache-Control": "public, max-age=" + TAROLE_CACHE_TTL,
     },
   });
 
@@ -556,42 +567,39 @@ async function cachedHandler(cacheId, ctx, producer) {
 
 async function handleTaroleRoleler(request, ctx) {
   return cachedHandler("roleler", ctx, async () => {
-    // Step 1: Fetch index page and discover all URLs
-    const indexHtml = await fetchPage(`${TAROLE_BASE}/index.html`);
+    const indexHtml = await fetchPage(TAROLE_BASE + "/index.html", 2);
     if (!indexHtml) return [];
 
     const pages = discoverPages(indexHtml);
+    if (pages.vhfPages.length === 0 && pages.uhfPages.length === 0) return [];
+
     const allRoleler = [];
 
-    // Step 2: Fetch VHF pages
     const vhfResults = await batchFetch(pages.vhfPages, 6);
     for (const { slug, html } of vhfResults) {
       if (!html) continue;
       allRoleler.push(...parsePageTable(html, slug, "VHF"));
     }
 
-    // Step 3: Fetch UHF pages
     const uhfResults = await batchFetch(pages.uhfPages, 6);
     for (const { slug, html } of uhfResults) {
       if (!html) continue;
       allRoleler.push(...parsePageTable(html, slug, "UHF"));
     }
 
-    // Step 4: Fetch DMR pages
     const dmrResults = await batchFetch(pages.dmrPages, 6);
     for (const { slug, html } of dmrResults) {
       if (!html) continue;
       allRoleler.push(...parsePageTable(html, slug, null));
     }
 
-    // Step 5: Deduplicate
     return deduplicateRoleler(allRoleler);
   });
 }
 
 async function handleTaroleTalkGruplar(request, ctx) {
   return cachedHandler("talkgruplar", ctx, async () => {
-    const html = await fetchPage(`${TAROLE_BASE}/talk-gruplar.html`);
+    const html = await fetchPage(TAROLE_BASE + "/talk-gruplar.html", 1);
     if (!html) return [];
     return parseTalkGruplar(html);
   });
@@ -599,8 +607,56 @@ async function handleTaroleTalkGruplar(request, ctx) {
 
 async function handleTaroleSimplex(request, ctx) {
   return cachedHandler("simplex", ctx, async () => {
-    const html = await fetchPage(`${TAROLE_BASE}/simplex.html`);
+    const html = await fetchPage(TAROLE_BASE + "/simplex.html", 1);
     if (!html) return { uhf: [], vhf: [] };
     return parseSimplex(html);
   });
+}
+
+async function handleTaroleDebug() {
+  const result = { ts: new Date().toISOString() };
+
+  try {
+    const resp = await fetch(TAROLE_BASE + "/index.html", {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; RoleExporter/2.0)",
+        "Accept": "text/html",
+      },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT),
+    });
+    result.indexStatus = resp.status;
+    result.indexOk = resp.ok;
+    result.indexSize = parseInt(resp.headers.get("content-length") || "0", 10);
+
+    if (resp.ok) {
+      const html = await resp.text();
+      result.htmlLen = html.length;
+      const pages = discoverPages(html);
+      result.vhfCount = pages.vhfPages.length;
+      result.uhfCount = pages.uhfPages.length;
+      result.dmrCount = pages.dmrPages.length;
+      result.vhfFirst3 = pages.vhfPages.slice(0, 3).map((p) => p.slug);
+      result.uhfFirst3 = pages.uhfPages.slice(0, 3).map((p) => p.slug);
+      result.dmrFirst3 = pages.dmrPages.slice(0, 3).map((p) => p.slug);
+
+      // Test one page fetch + parse
+      if (pages.vhfPages.length > 0) {
+        const testPage = pages.vhfPages[0];
+        const testHtml = await fetchPage(testPage.url);
+        result.testPage = testPage.slug;
+        result.testFetched = !!testHtml;
+        if (testHtml) {
+          const rows = extractTableRows(testHtml);
+          result.testRows = rows.length;
+          const parsed = parsePageTable(testHtml, testPage.slug, "VHF");
+          result.testParsed = parsed.length;
+          if (parsed.length > 0) result.testFirst = parsed[0];
+        }
+      }
+    }
+  } catch (err) {
+    result.error = err.message || String(err);
+  }
+
+  return jsonResponse(result);
 }
