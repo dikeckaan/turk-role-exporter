@@ -531,14 +531,21 @@ function isEmptyResult(data) {
 
 async function cachedHandler(cacheId, ctx, producer) {
   const cache = caches.default;
-  const cacheUrl = TAROLE_BASE + "/__cache__/" + cacheId;
+  const cacheUrl = TAROLE_BASE + "/__cache__/v2/" + cacheId;
   const cacheKey = new Request(cacheUrl, { method: "GET" });
 
   const cached = await cache.match(cacheKey);
   if (cached) {
-    const r = new Response(cached.body, cached);
-    r.headers.set("Access-Control-Allow-Origin", "*");
-    return r;
+    const body = await cached.text();
+    // Don't serve cached empty results
+    if (body && body !== "[]" && body !== "{}") {
+      const r = new Response(body, {
+        status: cached.status,
+        headers: cached.headers,
+      });
+      r.headers.set("Access-Control-Allow-Origin", "*");
+      return r;
+    }
   }
 
   const data = await producer();
@@ -565,32 +572,66 @@ async function cachedHandler(cacheId, ctx, producer) {
 
 // ─── ta-role route handlers ──────────────────────────────────────────────────
 
+// Max ~40 page fetches per invocation to stay under CF Workers' 50 subrequest limit.
+// Parts: vhf1 (first half VHF), vhf2 (second half), uhf1, uhf2, dmr
+const VALID_PARTS = new Set(["vhf1", "vhf2", "uhf1", "uhf2", "dmr"]);
+
 async function handleTaroleRoleler(request, ctx) {
-  return cachedHandler("roleler", ctx, async () => {
-    const indexHtml = await fetchPage(TAROLE_BASE + "/index.html", 2);
+  const url = new URL(request.url);
+  const part = url.searchParams.get("part");
+
+  if (!part || !VALID_PARTS.has(part)) {
+    return jsonResponse({
+      hata: "part parametresi gerekli: vhf1, vhf2, uhf1, uhf2, dmr",
+      parts: [...VALID_PARTS],
+    }, 400);
+  }
+
+  return cachedHandler("roleler-" + part, ctx, async () => {
+    const indexHtml = await fetchPage(TAROLE_BASE + "/index.html", 1);
     if (!indexHtml) return [];
 
     const pages = discoverPages(indexHtml);
-    if (pages.vhfPages.length === 0 && pages.uhfPages.length === 0) return [];
-
     const allRoleler = [];
 
-    const vhfResults = await batchFetch(pages.vhfPages, 6);
-    for (const { slug, html } of vhfResults) {
-      if (!html) continue;
-      allRoleler.push(...parsePageTable(html, slug, "VHF"));
-    }
-
-    const uhfResults = await batchFetch(pages.uhfPages, 6);
-    for (const { slug, html } of uhfResults) {
-      if (!html) continue;
-      allRoleler.push(...parsePageTable(html, slug, "UHF"));
-    }
-
-    const dmrResults = await batchFetch(pages.dmrPages, 6);
-    for (const { slug, html } of dmrResults) {
-      if (!html) continue;
-      allRoleler.push(...parsePageTable(html, slug, null));
+    if (part === "vhf1") {
+      const half = Math.ceil(pages.vhfPages.length / 2);
+      const slice = pages.vhfPages.slice(0, half);
+      const results = await batchFetch(slice, 6);
+      for (const { slug, html } of results) {
+        if (!html) continue;
+        allRoleler.push(...parsePageTable(html, slug, "VHF"));
+      }
+    } else if (part === "vhf2") {
+      const half = Math.ceil(pages.vhfPages.length / 2);
+      const slice = pages.vhfPages.slice(half);
+      const results = await batchFetch(slice, 6);
+      for (const { slug, html } of results) {
+        if (!html) continue;
+        allRoleler.push(...parsePageTable(html, slug, "VHF"));
+      }
+    } else if (part === "uhf1") {
+      const half = Math.ceil(pages.uhfPages.length / 2);
+      const slice = pages.uhfPages.slice(0, half);
+      const results = await batchFetch(slice, 6);
+      for (const { slug, html } of results) {
+        if (!html) continue;
+        allRoleler.push(...parsePageTable(html, slug, "UHF"));
+      }
+    } else if (part === "uhf2") {
+      const half = Math.ceil(pages.uhfPages.length / 2);
+      const slice = pages.uhfPages.slice(half);
+      const results = await batchFetch(slice, 6);
+      for (const { slug, html } of results) {
+        if (!html) continue;
+        allRoleler.push(...parsePageTable(html, slug, "UHF"));
+      }
+    } else if (part === "dmr") {
+      const results = await batchFetch(pages.dmrPages, 6);
+      for (const { slug, html } of results) {
+        if (!html) continue;
+        allRoleler.push(...parsePageTable(html, slug, null));
+      }
     }
 
     return deduplicateRoleler(allRoleler);

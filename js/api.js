@@ -26,16 +26,30 @@ export async function roleleriGetir() {
 
 /**
  * Fetches repeater data from ta-role.com via the worker scraper.
+ * Calls 5 parallel part endpoints to stay under CF Workers' subrequest limit.
  * Returns empty array on failure (non-blocking).
  */
 export async function taroleRoleleriGetir() {
+  const parts = ["vhf1", "vhf2", "uhf1", "uhf2", "dmr"];
+
+  async function fetchPart(part) {
+    try {
+      const response = await fetch(
+        WORKER_BASE + "/api/tarole/roleler?part=" + part,
+        { signal: AbortSignal.timeout(45000) }
+      );
+      if (!response.ok) return [];
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn("ta-role " + part + " alinamadi:", err.message);
+      return [];
+    }
+  }
+
   try {
-    const response = await fetch(`${WORKER_BASE}/api/tarole/roleler`, {
-      signal: AbortSignal.timeout(30000), // longer timeout for scraping
-    });
-    if (!response.ok) return [];
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
+    const results = await Promise.all(parts.map(fetchPart));
+    return results.flat();
   } catch (err) {
     console.warn("ta-role.com verisi alinamadi:", err.message);
     return [];
