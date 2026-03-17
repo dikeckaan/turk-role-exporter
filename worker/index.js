@@ -144,83 +144,62 @@ async function handleRoleler(request, ctx) {
  */
 function discoverPages(html) {
   const result = {
-    vhfPages: [],  // { url, label }
-    uhfPages: [],  // { url, label }
-    dmrPages: [],  // { url, label }
-    otherPages: {} // special pages like talk-gruplar, simplex
+    vhfPages: [],
+    uhfPages: [],
+    dmrPages: [],
+    otherPages: {}
   };
 
-  // Known special pages (not repeater tables)
   const SPECIAL_SLUGS = new Set([
     "index.html", "talk-gruplar.html", "simplex.html",
     "geni--hs.html", "dmr-id-list.html", "iletisim.html",
   ]);
 
-  // Extract all ta-role.com links with their surrounding context
-  // The HTML has structured nav sections. We look for section markers.
-  //
-  // Strategy: The nav has these top-level menu items in order:
-  //   "VHF Analog" ... links ... "UHF Analog" ... links ... "Digital" ... links
-  //
-  // We split the HTML by these section headers and extract links from each.
+  const getLinks = (sectionHtml) => {
+    if (!sectionHtml) return [];
+    // Matches relative href="istanbul.html" or absolute href="https://www.ta-role.com/istanbul.html"
+    const regex = /href="(?:https?:\/\/www\.ta-role\.com\/)?([^"]+\.html)"/gi;
+    const links = [];
+    let m;
+    while ((m = regex.exec(sectionHtml)) !== null) {
+      links.push(m[1]);
+    }
+    return links;
+  };
 
-  // Find section boundaries
   const vhfIdx = html.indexOf(">VHF Analog<");
   const uhfIdx = html.indexOf(">UHF Analog<");
   const digitalIdx = html.indexOf(">Digital R");
-  if (digitalIdx === -1) {
-    // Try alternative marker
-    var digIdx2 = html.indexOf(">Digital<");
-  }
-  const actualDigitalIdx = digitalIdx !== -1 ? digitalIdx : (digIdx2 || -1);
+  const actualDigitalIdx = digitalIdx !== -1 ? digitalIdx : (html.indexOf(">Digital<") || -1);
 
-  // Extract links from each section
-  const linkRegex = /href="https?:\/\/www\.ta-role\.com\/([^"]+\.html)"/gi;
-
-  // VHF section: between vhfIdx and uhfIdx
+  // VHF section
   if (vhfIdx !== -1 && uhfIdx !== -1) {
     const vhfSection = html.slice(vhfIdx, uhfIdx);
-    let m;
     const seen = new Set();
-    while ((m = linkRegex.exec(vhfSection)) !== null) {
-      const slug = m[1];
+    for (const slug of getLinks(vhfSection)) {
       if (SPECIAL_SLUGS.has(slug) || seen.has(slug)) continue;
       seen.add(slug);
-      result.vhfPages.push({
-        url: `${TAROLE_BASE}/${slug}`,
-        slug,
-        label: slugToLabel(slug),
-      });
+      result.vhfPages.push({ url: `${TAROLE_BASE}/${slug}`, slug, label: slugToLabel(slug) });
     }
   }
 
-  // UHF section: between uhfIdx and digitalIdx
-  linkRegex.lastIndex = 0;
+  // UHF section
   if (uhfIdx !== -1) {
     const uhfEnd = actualDigitalIdx !== -1 ? actualDigitalIdx : html.length;
     const uhfSection = html.slice(uhfIdx, uhfEnd);
-    let m;
     const seen = new Set();
-    while ((m = linkRegex.exec(uhfSection)) !== null) {
-      const slug = m[1];
+    for (const slug of getLinks(uhfSection)) {
       if (SPECIAL_SLUGS.has(slug) || seen.has(slug)) continue;
       seen.add(slug);
-      result.uhfPages.push({
-        url: `${TAROLE_BASE}/${slug}`,
-        slug,
-        label: slugToLabel(slug),
-      });
+      result.uhfPages.push({ url: `${TAROLE_BASE}/${slug}`, slug, label: slugToLabel(slug) });
     }
   }
 
-  // Digital section: after digitalIdx
-  linkRegex.lastIndex = 0;
+  // Digital section
   if (actualDigitalIdx !== -1) {
     const digitalSection = html.slice(actualDigitalIdx);
-    let m;
     const seen = new Set();
-    while ((m = linkRegex.exec(digitalSection)) !== null) {
-      const slug = m[1];
+    for (const slug of getLinks(digitalSection)) {
       if (seen.has(slug)) continue;
       seen.add(slug);
 
@@ -231,11 +210,7 @@ function discoverPages(html) {
       } else if (slug === "geni--hs.html" || slug === "dmr-id-list.html") {
         result.otherPages[slug.replace(".html", "")] = `${TAROLE_BASE}/${slug}`;
       } else if (!SPECIAL_SLUGS.has(slug)) {
-        result.dmrPages.push({
-          url: `${TAROLE_BASE}/${slug}`,
-          slug,
-          label: slugToLabel(slug),
-        });
+        result.dmrPages.push({ url: `${TAROLE_BASE}/${slug}`, slug, label: slugToLabel(slug) });
       }
     }
   }
