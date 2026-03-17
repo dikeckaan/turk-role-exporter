@@ -17,14 +17,21 @@
     <!-- Header -->
     <div class="header">
       <h1>Turk Role Exporter</h1>
-      <p>Turkiye amator telsiz rolelerini CPS uyumlu CSV formatinda indirin</p>
+      <p>Turkiye amator telsiz rolelerini CPS/CHIRP uyumlu CSV formatinda indirin</p>
     </div>
 
     <!-- Cihaz Secici -->
     <div class="section">
       <div class="section-title">Cihaz Secimi</div>
       <select id="cihaz-select"></select>
-      <p class="device-note">Diger cihaz destekleri yakinda eklenecektir.</p>
+      <div id="cihaz-bilgi" class="device-info-card" style="display:none;">
+        <div class="device-info-header">
+          <span class="device-info-name" id="cihaz-bilgi-ad"></span>
+          <span class="device-info-format" id="cihaz-bilgi-format"></span>
+        </div>
+        <p class="device-info-desc" id="cihaz-bilgi-aciklama"></p>
+        <div class="device-info-specs" id="cihaz-bilgi-ozellikler"></div>
+      </div>
     </div>
 
     <!-- Istatistik Paneli -->
@@ -60,8 +67,33 @@
           <div class="stat-label">Dijital</div>
         </div>
         <div class="stat-card">
+          <div class="stat-value" id="stat-tarole">0</div>
+          <div class="stat-label">ta-role</div>
+        </div>
+        <div class="stat-card">
           <div class="stat-value" id="stat-filtrelenmis">0</div>
           <div class="stat-label">Filtrelenmis</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Veri Kaynaklari -->
+    <div class="section">
+      <div class="section-title">Veri Kaynaklari</div>
+      <div class="filters-grid">
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="kaynak-amatortelsizcilik" class="toggle" checked>
+            amatortelsizcilik.com.tr
+          </label>
+          <small class="device-note">Ana veri kaynagi — JSON API</small>
+        </div>
+        <div class="filter-group">
+          <label>
+            <input type="checkbox" id="kaynak-tarole" class="toggle">
+            ta-role.com
+          </label>
+          <small class="device-note">Ek kaynak — HTML scraping (yavas olabilir)</small>
         </div>
       </div>
     </div>
@@ -156,10 +188,35 @@
             PMR Kanallari Ekle
           </label>
         </div>
-        <div class="filter-group">
+        <div class="filter-group" id="opsiyon-dpmr-group">
           <label>
             <input type="checkbox" id="opsiyon-dpmr" class="toggle">
             dPMR Kanallari Ekle
+          </label>
+        </div>
+        <div class="filter-group" id="opsiyon-fmradyo-group" style="display:none;">
+          <label>
+            <input type="checkbox" id="opsiyon-fmradyo" class="toggle">
+            FM Radyo Kanallari Ekle
+          </label>
+          <small id="fm-sehir-bilgi" class="device-note"></small>
+        </div>
+        <div class="filter-group" id="opsiyon-airband-group" style="display:none;">
+          <label>
+            <input type="checkbox" id="opsiyon-airband" class="toggle">
+            Havacilik (Air Band) Kanallari Ekle
+          </label>
+        </div>
+        <div class="filter-group" id="opsiyon-marine-group" style="display:none;">
+          <label>
+            <input type="checkbox" id="opsiyon-marine" class="toggle">
+            Denizcilik (Marine Band) Kanallari Ekle
+          </label>
+        </div>
+        <div class="filter-group" id="opsiyon-simplex-group" style="display:none;">
+          <label>
+            <input type="checkbox" id="opsiyon-simplex" class="toggle">
+            Digital Simplex Kanallari Ekle
           </label>
         </div>
         <div class="filter-group">
@@ -170,11 +227,7 @@
         </div>
         <div class="filter-group">
           <label for="guc-select">Guc Seviyesi</label>
-          <select id="guc-select">
-            <option value="High">High</option>
-            <option value="Mid">Mid</option>
-            <option value="Low">Low</option>
-          </select>
+          <select id="guc-select"></select>
         </div>
         <div class="filter-group">
           <label for="kanal-format-select">Kanal Adi Formati</label>

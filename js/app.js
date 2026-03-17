@@ -1,4 +1,4 @@
-import { roleleriGetir } from "./api.js";
+import { roleleriGetir, taroleRoleleriGetir } from "./api.js";
 import { cihazListesi, cihazProfili } from "./cihazlar.js";
 import {
   filtrele,
@@ -13,10 +13,20 @@ import {
   pinleriGuncelle,
   bolgeSeciminiSenkronla,
 } from "./harita.js";
+import {
+  ekKanalSayisi,
+  kanalDagilimi,
+  sehirdenFmKey,
+} from "./frekanslar.js";
 
 let tumRoleler = [];
+let taroleRoleler = [];
 let filtrelenmisRoleler = [];
-let seciliCihaz = "tyt-md-uv390-plus";
+let seciliCihaz = "quansheng-uv-k5-f4hwn";
+
+// Track which sources are loaded
+let amatortelsizcilikYuklendi = false;
+let taroleYuklendi = false;
 
 async function basla() {
   cihazSeciciDoldur();
@@ -24,9 +34,34 @@ async function basla() {
   tabloBasliklariAyarla();
   dinleyicileriKur();
 
+  // Load primary source if enabled
+  if (kaynakAktifMi("amatortelsizcilik")) {
+    await amatortelsizcilikYukle();
+  }
+
+  // Load ta-role in background if enabled
+  if (kaynakAktifMi("tarole")) {
+    taroleYukle();
+  }
+}
+
+// ─── Data Source Management ─────────────────────────────────
+
+function kaynakAktifMi(kaynak) {
+  if (kaynak === "amatortelsizcilik") {
+    return document.getElementById("kaynak-amatortelsizcilik")?.checked ?? true;
+  }
+  if (kaynak === "tarole") {
+    return document.getElementById("kaynak-tarole")?.checked ?? false;
+  }
+  return false;
+}
+
+async function amatortelsizcilikYukle() {
   try {
     const { data, fallback } = await roleleriGetir();
     tumRoleler = data;
+    amatortelsizcilikYuklendi = true;
     if (fallback) {
       bannerGoster(
         "warning",
@@ -44,6 +79,112 @@ async function basla() {
   }
 }
 
+async function taroleYukle() {
+  try {
+    taroleRoleler = await taroleRoleleriGetir();
+    taroleYuklendi = taroleRoleler.length > 0;
+    if (taroleYuklendi) {
+      kaynaklariMergeEt();
+      uygula();
+    }
+  } catch {
+    // non-blocking
+  }
+}
+
+/**
+ * Merges data from all active sources, avoiding duplicates.
+ */
+function kaynaklariMergeEt() {
+  const birlesik = [];
+  const gorulen = new Set();
+
+  // Add amatortelsizcilik data first (primary)
+  if (kaynakAktifMi("amatortelsizcilik") && amatortelsizcilikYuklendi) {
+    for (const r of tumRoleler) {
+      const key = `${r.frekans || r.frequency || ""}_${(r.konum || r.location || "").slice(0, 8)}`;
+      if (!gorulen.has(key)) {
+        gorulen.add(key);
+        birlesik.push(r);
+      }
+    }
+  }
+
+  // Add ta-role data (secondary, only non-duplicates)
+  if (kaynakAktifMi("tarole") && taroleYuklendi) {
+    for (const r of taroleRoleler) {
+      const key = `${r.frekans || ""}_${(r.konum || "").slice(0, 8)}`;
+      if (!gorulen.has(key)) {
+        gorulen.add(key);
+        birlesik.push(r);
+      }
+    }
+  }
+
+  // If only one source is active, display appropriately
+  if (!kaynakAktifMi("amatortelsizcilik") && kaynakAktifMi("tarole")) {
+    tumRoleler = taroleRoleler;
+  } else if (birlesik.length > 0) {
+    tumRoleler = birlesik;
+  }
+
+  istatistikleriGuncelle();
+}
+
+async function kaynakDegisti() {
+  bannerGizle();
+
+  // Reload sources as needed
+  if (kaynakAktifMi("amatortelsizcilik") && !amatortelsizcilikYuklendi) {
+    await amatortelsizcilikYukle();
+  }
+  if (kaynakAktifMi("tarole") && !taroleYuklendi) {
+    taroleYukle();
+  }
+
+  // Rebuild merged data
+  kaynaklariMergeEt();
+
+  // Rebuild city/region lists
+  sehirListesiDoldur();
+  taBolgesiDoldur();
+  uygula();
+}
+
+// ─── FM Auto-detect from city filter ───────────────────────
+
+function fmSehirleriBelirle() {
+  const seciliSehirler = getSeciliSehirler();
+  const fmKeys = new Set();
+
+  for (const sehir of seciliSehirler) {
+    const key = sehirdenFmKey(sehir);
+    if (key) fmKeys.add(key);
+  }
+
+  return [...fmKeys];
+}
+
+function fmBilgiGuncelle() {
+  const bilgiEl = document.getElementById("fm-sehir-bilgi");
+  if (!bilgiEl) return;
+
+  const fmCheckbox = document.getElementById("opsiyon-fmradyo");
+  if (!fmCheckbox?.checked) {
+    bilgiEl.textContent = "";
+    return;
+  }
+
+  const fmSehirler = fmSehirleriBelirle();
+  if (fmSehirler.length === 0) {
+    bilgiEl.textContent = "Secili sehirlerde FM verisi bulunamadi.";
+  } else {
+    bilgiEl.textContent = `FM istasyonlari: ${fmSehirler.join(", ")} (otomatik)`;
+  }
+}
+
+// ─── Device Setup ─────────────────────────────────────────
+
 function cihazSeciciDoldur() {
   const select = document.getElementById("cihaz-select");
   if (!select) return;
@@ -57,8 +198,14 @@ function cihazSeciciDoldur() {
   select.addEventListener("change", (e) => {
     seciliCihaz = e.target.value;
     cihazFiltreleriGuncelle();
+    cihazBilgiGuncelle();
+    gucSeciciGuncelle();
+    cihazOpsiyonlariGuncelle();
     uygula();
   });
+  cihazBilgiGuncelle();
+  gucSeciciGuncelle();
+  cihazOpsiyonlariGuncelle();
 }
 
 function cihazFiltreleriGuncelle() {
@@ -73,16 +220,120 @@ function cihazFiltreleriGuncelle() {
 
   const modSelect = document.getElementById("mod-select");
   if (modSelect) {
+    const dijitalDestekli = profil.modlar.includes("Dijital");
     modSelect.querySelectorAll("option").forEach((opt) => {
-      if (opt.value === "hepsi" || opt.value === "dijital-oncelikli") return;
-      const dijitalMod = opt.value.includes("dijital");
-      const analogMod = opt.value.includes("analog");
-      opt.disabled =
-        (dijitalMod && !profil.modlar.includes("Dijital")) ||
-        (analogMod && !profil.modlar.includes("Analog"));
+      if (opt.value === "hepsi") return;
+      if (opt.value === "dijital-oncelikli" || opt.value === "sadece-dijital") {
+        opt.disabled = !dijitalDestekli;
+      } else if (opt.value === "sadece-analog") {
+        opt.disabled = !profil.modlar.includes("Analog");
+      }
     });
+    if (!dijitalDestekli && (modSelect.value === "sadece-dijital" || modSelect.value === "dijital-oncelikli")) {
+      modSelect.value = "hepsi";
+    }
   }
 }
+
+function cihazBilgiGuncelle() {
+  const profil = cihazProfili(seciliCihaz);
+  const card = document.getElementById("cihaz-bilgi");
+  if (!card || !profil) { if (card) card.style.display = "none"; return; }
+
+  card.style.display = "block";
+
+  const adEl = document.getElementById("cihaz-bilgi-ad");
+  if (adEl) adEl.textContent = profil.ad;
+
+  const formatEl = document.getElementById("cihaz-bilgi-format");
+  if (formatEl) {
+    formatEl.textContent = profil.csvFormat === "chirp" ? "CHIRP" : "CPS";
+    formatEl.className = "device-info-format format-" + profil.csvFormat;
+  }
+
+  const aciklamaEl = document.getElementById("cihaz-bilgi-aciklama");
+  if (aciklamaEl) aciklamaEl.textContent = profil.aciklama || "";
+
+  const ozelliklerEl = document.getElementById("cihaz-bilgi-ozellikler");
+  if (ozelliklerEl) {
+    while (ozelliklerEl.firstChild) ozelliklerEl.removeChild(ozelliklerEl.firstChild);
+
+    const specs = [];
+    specs.push({ label: "Max Kanal", value: String(profil.maxKanal) });
+    specs.push({ label: "Bantlar", value: profil.bantlar.join(", ") });
+    specs.push({ label: "Modlar", value: profil.modlar.join(", ") });
+
+    const ek = profil.ekOzellikler;
+    if (ek) {
+      if (ek.genisRX) specs.push({ label: "RX Aralik", value: ek.genisRX });
+      if (ek.txBant) specs.push({ label: "TX Aralik", value: ek.txBant });
+      if (ek.fmRadyo) specs.push({ label: "FM Radyo", value: "Var" });
+      if (ek.airBand) specs.push({ label: "Air Band", value: "Var" });
+      if (ek.marineBand) specs.push({ label: "Marine Band", value: "Var" });
+      if (ek.bandscope) specs.push({ label: "Bandscope", value: "Var" });
+      if (ek.ssbDemod) specs.push({ label: "SSB Demod", value: "Var" });
+    }
+
+    for (const s of specs) {
+      const tag = document.createElement("div");
+      tag.className = "device-spec-tag";
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "spec-label";
+      labelSpan.textContent = s.label;
+      const valueSpan = document.createElement("span");
+      valueSpan.className = "spec-value";
+      valueSpan.textContent = s.value;
+      tag.appendChild(labelSpan);
+      tag.appendChild(valueSpan);
+      ozelliklerEl.appendChild(tag);
+    }
+  }
+}
+
+function gucSeciciGuncelle() {
+  const profil = cihazProfili(seciliCihaz);
+  const select = document.getElementById("guc-select");
+  if (!select || !profil) return;
+
+  const oncekiDeger = select.value;
+  while (select.firstChild) select.removeChild(select.firstChild);
+
+  for (const key of Object.keys(profil.gucSeviyeleri)) {
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = key + " (" + profil.gucSeviyeleri[key] + ")";
+    select.appendChild(opt);
+  }
+
+  if ([...select.options].some((o) => o.value === oncekiDeger)) {
+    select.value = oncekiDeger;
+  }
+}
+
+function cihazOpsiyonlariGuncelle() {
+  const profil = cihazProfili(seciliCihaz);
+  if (!profil) return;
+
+  const dijitalVar = profil.modlar.includes("Dijital");
+  const ek = profil.ekOzellikler || {};
+
+  const dpmrGroup = document.getElementById("opsiyon-dpmr-group");
+  if (dpmrGroup) dpmrGroup.style.display = dijitalVar ? "" : "none";
+
+  const fmGroup = document.getElementById("opsiyon-fmradyo-group");
+  if (fmGroup) fmGroup.style.display = ek.fmRadyo ? "" : "none";
+
+  const airGroup = document.getElementById("opsiyon-airband-group");
+  if (airGroup) airGroup.style.display = ek.airBand ? "" : "none";
+
+  const marineGroup = document.getElementById("opsiyon-marine-group");
+  if (marineGroup) marineGroup.style.display = ek.marineBand ? "" : "none";
+
+  const simplexGroup = document.getElementById("opsiyon-simplex-group");
+  if (simplexGroup) simplexGroup.style.display = "";
+}
+
+// ─── Filter Lists ─────────────────────────────────────────
 
 function sehirListesiDoldur() {
   const container = document.getElementById("sehir-listesi");
@@ -155,6 +406,8 @@ function taBolgesiDoldur() {
   }
 }
 
+// ─── Getters ──────────────────────────────────────────────
+
 function getSeciliSehirler() {
   return [...document.querySelectorAll("input[data-sehir]:checked")].map(
     (cb) => cb.dataset.sehir
@@ -179,6 +432,8 @@ function getSeciliBantlar() {
   );
 }
 
+// ─── Option Collection ────────────────────────────────────
+
 function filtreTopla() {
   return {
     sadeceAktif: document.getElementById("filtre-aktif")?.checked ?? true,
@@ -196,6 +451,11 @@ function opsiyonTopla() {
   return {
     pmrEkle: document.getElementById("opsiyon-pmr")?.checked ?? false,
     dpmrEkle: document.getElementById("opsiyon-dpmr")?.checked ?? false,
+    fmRadyoEkle: document.getElementById("opsiyon-fmradyo")?.checked ?? false,
+    fmSehirler: fmSehirleriBelirle(), // auto from city filter
+    airbandEkle: document.getElementById("opsiyon-airband")?.checked ?? false,
+    marineEkle: document.getElementById("opsiyon-marine")?.checked ?? false,
+    simplexEkle: document.getElementById("opsiyon-simplex")?.checked ?? false,
     rxOnly: document.getElementById("opsiyon-rxonly")?.checked ?? true,
     gucSeviyesi: document.getElementById("guc-select")?.value || "High",
     kanalAdiFormati:
@@ -207,6 +467,8 @@ function opsiyonTopla() {
   };
 }
 
+// ─── Main Apply ───────────────────────────────────────────
+
 function uygula() {
   const profil = cihazProfili(seciliCihaz);
   if (!profil) return;
@@ -214,7 +476,6 @@ function uygula() {
   const filtreler = filtreTopla();
   filtrelenmisRoleler = filtrele(tumRoleler, filtreler, profil);
 
-  // Dijital oncelikli siralama
   if (filtreler.mod === "dijital-oncelikli") {
     filtrelenmisRoleler.sort((a, b) => {
       const da = a.digital === 1 || a.digital === 2 ? 0 : 1;
@@ -225,20 +486,22 @@ function uygula() {
 
   const opsiyonlar = opsiyonTopla();
 
+  // Update FM info text
+  fmBilgiGuncelle();
+
   tabloGuncelle(filtrelenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama);
   pinleriGuncelle(filtrelenmisRoleler);
   istatistikleriGuncelle();
 
-  // maxKanal kontrolu
-  const pmrSayisi =
-    (opsiyonlar.pmrEkle ? 16 : 0) + (opsiyonlar.dpmrEkle ? 16 : 0);
-  const toplamKanal = filtrelenmisRoleler.length + pmrSayisi;
+  // ── Channel limit check with breakdown ──
+  const ekSayisi = ekKanalSayisi(opsiyonlar);
+  const toplamKanal = filtrelenmisRoleler.length + ekSayisi;
 
   const indirBtn = document.getElementById("csv-indir-btn");
-  const kanalSayisi = document.getElementById("kanal-sayisi");
+  const kanalSayisiEl = document.getElementById("kanal-sayisi");
   const maxUyari = document.getElementById("max-kanal-uyari");
 
-  if (kanalSayisi) kanalSayisi.textContent = toplamKanal;
+  if (kanalSayisiEl) kanalSayisiEl.textContent = toplamKanal;
 
   if (toplamKanal > profil.maxKanal) {
     if (indirBtn) {
@@ -246,7 +509,26 @@ function uygula() {
       indirBtn.disabled = true;
     }
     if (maxUyari) {
-      maxUyari.textContent = `Secili filtrelerle ${toplamKanal} kanal olusacak. ${profil.ad} maksimum ${profil.maxKanal} kanal destekler. Lutfen filtrelerinizi daraltin.`;
+      const fazla = toplamKanal - profil.maxKanal;
+      const dagilim = kanalDagilimi(filtrelenmisRoleler.length, opsiyonlar);
+
+      let html = `<strong>${profil.ad}</strong> maksimum <strong>${profil.maxKanal}</strong> kanal destekler. `;
+      html += `Secili ayarlarla <strong>${toplamKanal}</strong> kanal olusur — <strong>${fazla}</strong> kanal fazla!`;
+      html += `<div class="kanal-dagilimi">`;
+      html += `<div class="kanal-dagilimi-baslik">Kanal Dagilimi — cikarilacak opsiyonlari seciniz:</div>`;
+      for (const item of dagilim) {
+        html += `<div class="kanal-dagilimi-satir">`;
+        html += `<span class="kanal-ad">${item.ad}${item.zorunlu ? "" : " ✕"}</span>`;
+        html += `<span class="kanal-sayi">${item.sayi}</span>`;
+        html += `</div>`;
+      }
+      html += `<div class="kanal-dagilimi-toplam">`;
+      html += `<span>Toplam</span>`;
+      html += `<span>${toplamKanal} / ${profil.maxKanal}</span>`;
+      html += `</div>`;
+      html += `</div>`;
+
+      maxUyari.innerHTML = html;
       maxUyari.style.display = "block";
     }
   } else {
@@ -254,7 +536,10 @@ function uygula() {
       indirBtn.classList.remove("disabled");
       indirBtn.disabled = false;
     }
-    if (maxUyari) maxUyari.style.display = "none";
+    if (maxUyari) {
+      maxUyari.innerHTML = "";
+      maxUyari.style.display = "none";
+    }
   }
 }
 
@@ -281,23 +566,38 @@ function istatistikleriGuncelle() {
   set("stat-uhf", uhf);
   set("stat-aprs", aprs);
   set("stat-dijital", dijital);
+  set("stat-tarole", taroleRoleler.length);
   set("stat-filtrelenmis", filtrelenmisRoleler.length);
 }
+
+// ─── Event Listeners ──────────────────────────────────────
 
 function dinleyicileriKur() {
   document.addEventListener("filtre-degisti", () => uygula());
 
+  // Regular filter toggles
   const toggleIds = [
     "filtre-aktif",
     "filtre-ruhsat",
     "filtre-puan",
     "opsiyon-pmr",
     "opsiyon-dpmr",
+    "opsiyon-fmradyo",
+    "opsiyon-airband",
+    "opsiyon-marine",
+    "opsiyon-simplex",
     "opsiyon-rxonly",
   ];
   toggleIds.forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
+    });
+  });
+
+  // Data source toggles — trigger reload
+  ["kaynak-amatortelsizcilik", "kaynak-tarole"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", () => {
+      kaynakDegisti();
     });
   });
 
@@ -313,14 +613,12 @@ function dinleyicileriKur() {
     });
   });
 
-  // Tablo arama
   document.getElementById("tablo-arama")?.addEventListener("input", () => {
     const profil = cihazProfili(seciliCihaz);
     const opsiyonlar = opsiyonTopla();
     tabloGuncelle(filtrelenmisRoleler, opsiyonlar.kanalAdiFormati, profil?.shiftHesaplama);
   });
 
-  // Sehir arama
   document.getElementById("sehir-arama")?.addEventListener("input", (e) => {
     const q = e.target.value.toLowerCase();
     document.querySelectorAll("#sehir-listesi label").forEach((label) => {
@@ -330,7 +628,6 @@ function dinleyicileriKur() {
     });
   });
 
-  // Tumunu sec / temizle
   document
     .getElementById("sehir-tumunu-sec")
     ?.addEventListener("click", () => {
@@ -348,7 +645,6 @@ function dinleyicileriKur() {
     document.dispatchEvent(new CustomEvent("filtre-degisti"));
   });
 
-  // CSV indir
   document.getElementById("csv-indir-btn")?.addEventListener("click", () => {
     const profil = cihazProfili(seciliCihaz);
     if (!profil) return;
@@ -359,6 +655,8 @@ function dinleyicileriKur() {
     csvIndir(csv, dosyaAdi);
   });
 }
+
+// ─── Banner ───────────────────────────────────────────────
 
 function bannerGoster(tip, mesaj) {
   const container = document.getElementById("banner-container");
@@ -391,23 +689,14 @@ function bannerGizle() {
 
 async function tekrarDene() {
   bannerGizle();
-  try {
-    const { data, fallback } = await roleleriGetir();
-    tumRoleler = data;
-    if (fallback) {
-      bannerGoster(
-        "warning",
-        "API hatasi ile karsilasildi. Fallback surum kullanilmaktadir."
-      );
-    }
-    sehirListesiDoldur();
-    taBolgesiDoldur();
-    uygula();
-  } catch {
-    bannerGoster(
-      "error",
-      "Sunucuya erisilemiyor. Lutfen internet baglantinizi kontrol edin."
-    );
+  amatortelsizcilikYuklendi = false;
+  taroleYuklendi = false;
+
+  if (kaynakAktifMi("amatortelsizcilik")) {
+    await amatortelsizcilikYukle();
+  }
+  if (kaynakAktifMi("tarole")) {
+    taroleYukle();
   }
 }
 

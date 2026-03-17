@@ -476,3 +476,157 @@ table th.sort-desc::after {
     justify-content: center;
   }
 }
+
+/* Device Info Card */
+.device-info-card {
+  margin-top: 12px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #16213e 0%, #1a1a3e 100%);
+  border: 1px solid #0f3460;
+  border-radius: 10px;
+  border-left: 4px solid #e94560;
+}
+
+.device-info-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.device-info-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #eee;
+}
+
+.device-info-format {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.format-chirp {
+  background: #4ecca3;
+  color: #111;
+}
+
+.format-cps {
+  background: #bb86fc;
+  color: #111;
+}
+
+.device-info-desc {
+  color: #999;
+  font-size: 0.85rem;
+  margin: 0 0 12px;
+}
+
+.device-info-specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device-spec-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(15, 52, 96, 0.6);
+  border: 1px solid rgba(233, 69, 96, 0.2);
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+.spec-label {
+  color: #999;
+}
+
+.spec-value {
+  color: #4ecca3;
+  font-weight: 600;
+}
+
+/* ── FM City Selector ───────────────────────────────────── */
+.fm-city-selector {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--surface);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.fm-city-label {
+  font-size: 0.85rem !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 6px !important;
+}
+
+.fm-city-hint {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.checkbox-group.compact {
+  gap: 4px;
+}
+
+.checkbox-group.compact label {
+  font-size: 0.82rem;
+  padding: 3px 8px;
+}
+
+/* ── Channel Breakdown (limit warning) ───────────────────── */
+.kanal-dagilimi {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(240, 165, 0, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(240, 165, 0, 0.2);
+}
+
+.kanal-dagilimi-baslik {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--warning);
+  margin-bottom: 6px;
+}
+
+.kanal-dagilimi-satir {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.kanal-dagilimi-satir .kanal-ad {
+  flex: 1;
+}
+
+.kanal-dagilimi-satir .kanal-sayi {
+  color: var(--text);
+  font-weight: 600;
+  min-width: 30px;
+  text-align: right;
+}
+
+.kanal-dagilimi-toplam {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0 0;
+  margin-top: 6px;
+  border-top: 1px solid rgba(240, 165, 0, 0.2);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--error);
+}
+
