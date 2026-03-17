@@ -20,18 +20,52 @@ import {
 } from "./frekanslar.js";
 
 // ─── State ────────────────────────────────────────────────
-// Keep original sources SEPARATE — never overwrite them
 let amatortelsizcilikRoleler = [];
 let taroleRoleler = [];
-
-// Merged view used by filters/table/map
 let birlesikRoleler = [];
 let filtrelenmisRoleler = [];
 let seciliCihaz = "quansheng-uv-k5-f4hwn";
 
-// Track loading state
 let amatortelsizcilikYuklendi = false;
 let taroleYuklendi = false;
+
+// ─── Loading UI Helpers ───────────────────────────────────
+
+function kaynakDurumGuncelle(kaynak, durum, mesaj) {
+  const durumEl = document.getElementById(`kaynak-${kaynak}-durum`);
+  const progressEl = document.getElementById(`kaynak-${kaynak}-progress`);
+  const fillEl = progressEl?.querySelector(".progress-fill");
+
+  if (durumEl) {
+    durumEl.textContent = mesaj || "";
+    durumEl.className = "kaynak-durum";
+    if (durum === "yukleniyor") durumEl.classList.add("yukleniyor");
+    else if (durum === "basarili") durumEl.classList.add("basarili");
+    else if (durum === "hata") durumEl.classList.add("hata");
+  }
+
+  if (progressEl && fillEl) {
+    if (durum === "yukleniyor") {
+      progressEl.style.display = "";
+      fillEl.classList.add("indeterminate");
+      fillEl.style.width = "";
+    } else if (durum === "basarili") {
+      fillEl.classList.remove("indeterminate");
+      fillEl.style.width = "100%";
+      setTimeout(() => { progressEl.style.display = "none"; }, 2000);
+    } else if (durum === "hata") {
+      fillEl.classList.remove("indeterminate");
+      fillEl.style.width = "0%";
+      progressEl.style.display = "none";
+    } else {
+      progressEl.style.display = "none";
+      fillEl.classList.remove("indeterminate");
+      fillEl.style.width = "0%";
+    }
+  }
+}
+
+// ─── Boot ─────────────────────────────────────────────────
 
 async function basla() {
   cihazSeciciDoldur();
@@ -39,10 +73,10 @@ async function basla() {
   tabloBasliklariAyarla();
   dinleyicileriKur();
 
-  // Always load primary source first
+  // Always load primary source
   await amatortelsizcilikYukle();
 
-  // Load ta-role in background if its toggle is on
+  // If ta-role toggle is on at start, load it too
   if (kaynakAktifMi("tarole")) {
     taroleYukle();
   }
@@ -61,47 +95,51 @@ function kaynakAktifMi(kaynak) {
 }
 
 async function amatortelsizcilikYukle() {
+  kaynakDurumGuncelle("amatortelsizcilik", "yukleniyor", "Yukleniyor...");
   try {
     const { data, fallback } = await roleleriGetir();
     amatortelsizcilikRoleler = data;
     amatortelsizcilikYuklendi = true;
+
+    const msg = fallback
+      ? `✓ ${data.length} role (fallback)`
+      : `✓ ${data.length} role yuklendi`;
+    kaynakDurumGuncelle("amatortelsizcilik", "basarili", msg);
+
     if (fallback) {
-      bannerGoster(
-        "warning",
-        "API hatasi — fallback surum kullaniliyor."
-      );
+      bannerGoster("warning", "API hatasi — fallback surum kullaniliyor.");
     }
+
     kaynaklariMergeEt();
     sehirListesiDoldur();
     taBolgesiDoldur();
     uygula();
   } catch {
-    bannerGoster(
-      "error",
-      "Sunucuya erisilemiyor. Internet baglantinizi kontrol edin."
-    );
+    kaynakDurumGuncelle("amatortelsizcilik", "hata", "✕ Baglanti hatasi");
+    bannerGoster("error", "Sunucuya erisilemiyor.");
   }
 }
 
 async function taroleYukle() {
+  kaynakDurumGuncelle("tarole", "yukleniyor", "Yukleniyor... (bu islem yavas olabilir)");
   try {
     taroleRoleler = await taroleRoleleriGetir();
     taroleYuklendi = taroleRoleler.length > 0;
+
     if (taroleYuklendi) {
+      kaynakDurumGuncelle("tarole", "basarili", `✓ ${taroleRoleler.length} role yuklendi`);
       kaynaklariMergeEt();
       sehirListesiDoldur();
       taBolgesiDoldur();
       uygula();
+    } else {
+      kaynakDurumGuncelle("tarole", "hata", "✕ Veri bulunamadi");
     }
   } catch {
-    // non-blocking
+    kaynakDurumGuncelle("tarole", "hata", "✕ Baglanti hatasi");
   }
 }
 
-/**
- * Merges active sources into birlesikRoleler.
- * NEVER mutates the original source arrays.
- */
 function kaynaklariMergeEt() {
   const sonuc = [];
   const gorulen = new Set();
@@ -115,12 +153,10 @@ function kaynaklariMergeEt() {
     sonuc.push(role);
   }
 
-  // Primary source
   if (kaynakAktifMi("amatortelsizcilik")) {
     for (const r of amatortelsizcilikRoleler) ekle(r);
   }
 
-  // Secondary source (deduped against primary)
   if (kaynakAktifMi("tarole")) {
     for (const r of taroleRoleler) ekle(r);
   }
@@ -132,16 +168,27 @@ function kaynaklariMergeEt() {
 async function kaynakDegisti() {
   bannerGizle();
 
-  // Load sources that aren't loaded yet
   if (kaynakAktifMi("amatortelsizcilik") && !amatortelsizcilikYuklendi) {
     await amatortelsizcilikYukle();
-    return; // amatortelsizcilikYukle already calls merge + uygula
-  }
-  if (kaynakAktifMi("tarole") && !taroleYuklendi) {
-    taroleYukle(); // async, will call merge + uygula when done
+    return;
   }
 
-  // Re-merge with current toggle state
+  if (!kaynakAktifMi("amatortelsizcilik")) {
+    kaynakDurumGuncelle("amatortelsizcilik", "kapali", "");
+  } else if (amatortelsizcilikYuklendi) {
+    kaynakDurumGuncelle("amatortelsizcilik", "basarili", `✓ ${amatortelsizcilikRoleler.length} role`);
+  }
+
+  if (kaynakAktifMi("tarole")) {
+    if (!taroleYuklendi) {
+      taroleYukle(); // async — will merge+uygula when done
+    } else {
+      kaynakDurumGuncelle("tarole", "basarili", `✓ ${taroleRoleler.length} role`);
+    }
+  } else {
+    kaynakDurumGuncelle("tarole", "kapali", "");
+  }
+
   kaynaklariMergeEt();
   sehirListesiDoldur();
   taBolgesiDoldur();
@@ -153,25 +200,18 @@ async function kaynakDegisti() {
 function fmSehirleriBelirle() {
   const seciliSehirler = getSeciliSehirler();
   const fmKeys = new Set();
-
   for (const sehir of seciliSehirler) {
     const key = sehirdenFmKey(sehir);
     if (key) fmKeys.add(key);
   }
-
   return [...fmKeys];
 }
 
 function fmBilgiGuncelle() {
   const bilgiEl = document.getElementById("fm-sehir-bilgi");
   if (!bilgiEl) return;
-
   const fmCheckbox = document.getElementById("opsiyon-fmradyo");
-  if (!fmCheckbox?.checked) {
-    bilgiEl.textContent = "";
-    return;
-  }
-
+  if (!fmCheckbox?.checked) { bilgiEl.textContent = ""; return; }
   const fmSehirler = fmSehirleriBelirle();
   if (fmSehirler.length === 0) {
     bilgiEl.textContent = "Secili sehirlerde FM verisi bulunamadi.";
@@ -255,12 +295,10 @@ function cihazBilgiGuncelle() {
   const ozelliklerEl = document.getElementById("cihaz-bilgi-ozellikler");
   if (ozelliklerEl) {
     while (ozelliklerEl.firstChild) ozelliklerEl.removeChild(ozelliklerEl.firstChild);
-
     const specs = [];
     specs.push({ label: "Max Kanal", value: String(profil.maxKanal) });
     specs.push({ label: "Bantlar", value: profil.bantlar.join(", ") });
     specs.push({ label: "Modlar", value: profil.modlar.join(", ") });
-
     const ek = profil.ekOzellikler;
     if (ek) {
       if (ek.genisRX) specs.push({ label: "RX Aralik", value: ek.genisRX });
@@ -271,7 +309,6 @@ function cihazBilgiGuncelle() {
       if (ek.bandscope) specs.push({ label: "Bandscope", value: "Var" });
       if (ek.ssbDemod) specs.push({ label: "SSB Demod", value: "Var" });
     }
-
     for (const s of specs) {
       const tag = document.createElement("div");
       tag.className = "device-spec-tag";
@@ -292,17 +329,14 @@ function gucSeciciGuncelle() {
   const profil = cihazProfili(seciliCihaz);
   const select = document.getElementById("guc-select");
   if (!select || !profil) return;
-
   const oncekiDeger = select.value;
   while (select.firstChild) select.removeChild(select.firstChild);
-
   for (const key of Object.keys(profil.gucSeviyeleri)) {
     const opt = document.createElement("option");
     opt.value = key;
     opt.textContent = key + " (" + profil.gucSeviyeleri[key] + ")";
     select.appendChild(opt);
   }
-
   if ([...select.options].some((o) => o.value === oncekiDeger)) {
     select.value = oncekiDeger;
   }
@@ -315,25 +349,16 @@ function cihazOpsiyonlariGuncelle() {
   const dijitalVar = profil.modlar.includes("Dijital");
   const ek = profil.ekOzellikler || {};
 
-  // dPMR — only for digital devices
-  const dpmrGroup = document.getElementById("opsiyon-dpmr-group");
-  if (dpmrGroup) dpmrGroup.style.display = dijitalVar ? "" : "none";
+  const goster = (id, kosul) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = kosul ? "" : "none";
+  };
 
-  // FM Radio
-  const fmGroup = document.getElementById("opsiyon-fmradyo-group");
-  if (fmGroup) fmGroup.style.display = ek.fmRadyo ? "" : "none";
-
-  // Airband
-  const airGroup = document.getElementById("opsiyon-airband-group");
-  if (airGroup) airGroup.style.display = ek.airBand ? "" : "none";
-
-  // Marine Band
-  const marineGroup = document.getElementById("opsiyon-marine-group");
-  if (marineGroup) marineGroup.style.display = ek.marineBand ? "" : "none";
-
-  // Digital Simplex — show for all devices
-  const simplexGroup = document.getElementById("opsiyon-simplex-group");
-  if (simplexGroup) simplexGroup.style.display = "";
+  goster("opsiyon-dpmr-group", dijitalVar);
+  goster("opsiyon-fmradyo-group", ek.fmRadyo);
+  goster("opsiyon-airband-group", ek.airBand);
+  goster("opsiyon-marine-group", ek.marineBand);
+  goster("opsiyon-simplex-group", true); // always visible
 }
 
 // ─── Filter Lists ─────────────────────────────────────────
@@ -341,19 +366,14 @@ function cihazOpsiyonlariGuncelle() {
 function sehirListesiDoldur() {
   const container = document.getElementById("sehir-listesi");
   if (!container) return;
-
-  // Remember currently checked cities
   const oncekiSecili = new Set(getSeciliSehirler());
   const sehirler = benzersizSehirler(birlesikRoleler);
-
   while (container.firstChild) container.removeChild(container.firstChild);
-
   for (const s of sehirler) {
     const label = document.createElement("label");
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.dataset.sehir = s;
-    // Preserve previous selection if exists, otherwise default checked
     cb.checked = oncekiSecili.size === 0 || oncekiSecili.has(s);
     cb.addEventListener("change", () => {
       ilceListesiDoldur();
@@ -371,9 +391,7 @@ function ilceListesiDoldur() {
   if (!container) return;
   const seciliSehirler = getSeciliSehirler();
   const ilceler = benzersizIlceler(birlesikRoleler, seciliSehirler);
-
   while (container.firstChild) container.removeChild(container.firstChild);
-
   for (const i of ilceler) {
     const label = document.createElement("label");
     const cb = document.createElement("input");
@@ -393,9 +411,7 @@ function taBolgesiDoldur() {
   const container = document.getElementById("ta-bolge-listesi");
   if (!container) return;
   const bolgeler = benzersizTaBolgeleri(birlesikRoleler);
-
   while (container.firstChild) container.removeChild(container.firstChild);
-
   for (const b of bolgeler) {
     const label = document.createElement("label");
     const cb = document.createElement("input");
@@ -498,7 +514,7 @@ function uygula() {
   pinleriGuncelle(filtrelenmisRoleler);
   istatistikleriGuncelle();
 
-  // ── Channel limit check ──
+  // Channel limit check
   const ekSayisi = ekKanalSayisi(opsiyonlar);
   const toplamKanal = filtrelenmisRoleler.length + ekSayisi;
 
@@ -509,68 +525,39 @@ function uygula() {
   if (kanalSayisiEl) kanalSayisiEl.textContent = toplamKanal;
 
   if (toplamKanal > profil.maxKanal) {
-    if (indirBtn) {
-      indirBtn.classList.add("disabled");
-      indirBtn.disabled = true;
-    }
+    if (indirBtn) { indirBtn.classList.add("disabled"); indirBtn.disabled = true; }
     if (maxUyari) {
       const fazla = toplamKanal - profil.maxKanal;
       const dagilim = kanalDagilimi(filtrelenmisRoleler.length, opsiyonlar);
-
       let html = `<strong>${profil.ad}</strong> max <strong>${profil.maxKanal}</strong> kanal. `;
       html += `Toplam <strong>${toplamKanal}</strong> — <strong>${fazla}</strong> fazla!`;
-      html += `<div class="kanal-dagilimi">`;
-      html += `<div class="kanal-dagilimi-baslik">Kanal Dagilimi:</div>`;
+      html += `<div class="kanal-dagilimi"><div class="kanal-dagilimi-baslik">Kanal Dagilimi:</div>`;
       for (const item of dagilim) {
         html += `<div class="kanal-dagilimi-satir">`;
         html += `<span class="kanal-ad">${item.ad}${item.zorunlu ? "" : " ✕"}</span>`;
-        html += `<span class="kanal-sayi">${item.sayi}</span>`;
-        html += `</div>`;
+        html += `<span class="kanal-sayi">${item.sayi}</span></div>`;
       }
-      html += `<div class="kanal-dagilimi-toplam">`;
-      html += `<span>Toplam</span>`;
-      html += `<span>${toplamKanal} / ${profil.maxKanal}</span>`;
-      html += `</div></div>`;
-
+      html += `<div class="kanal-dagilimi-toplam"><span>Toplam</span>`;
+      html += `<span>${toplamKanal} / ${profil.maxKanal}</span></div></div>`;
       maxUyari.innerHTML = html;
       maxUyari.style.display = "block";
     }
   } else {
-    if (indirBtn) {
-      indirBtn.classList.remove("disabled");
-      indirBtn.disabled = false;
-    }
-    if (maxUyari) {
-      maxUyari.innerHTML = "";
-      maxUyari.style.display = "none";
-    }
+    if (indirBtn) { indirBtn.classList.remove("disabled"); indirBtn.disabled = false; }
+    if (maxUyari) { maxUyari.innerHTML = ""; maxUyari.style.display = "none"; }
   }
 }
 
 function istatistikleriGuncelle() {
   const veri = birlesikRoleler;
-  const toplam = veri.length;
-  const aktif = veri.filter((r) => r.durum === true).length;
-  const pasif = toplam - aktif;
-  const vhf = veri.filter((r) => r.bant === "VHF").length;
-  const uhf = veri.filter((r) => r.bant === "UHF").length;
-  const aprs = veri.filter((r) => r.bant === "APRS").length;
-  const dijital = veri.filter(
-    (r) => r.digital === 1 || r.digital === 2
-  ).length;
-
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-  };
-
-  set("stat-toplam", toplam);
-  set("stat-aktif", aktif);
-  set("stat-pasif", pasif);
-  set("stat-vhf", vhf);
-  set("stat-uhf", uhf);
-  set("stat-aprs", aprs);
-  set("stat-dijital", dijital);
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set("stat-toplam", veri.length);
+  set("stat-aktif", veri.filter((r) => r.durum === true).length);
+  set("stat-pasif", veri.filter((r) => r.durum !== true).length);
+  set("stat-vhf", veri.filter((r) => r.bant === "VHF").length);
+  set("stat-uhf", veri.filter((r) => r.bant === "UHF").length);
+  set("stat-aprs", veri.filter((r) => r.bant === "APRS").length);
+  set("stat-dijital", veri.filter((r) => r.digital === 1 || r.digital === 2).length);
   set("stat-tarole", taroleRoleler.length);
   set("stat-filtrelenmis", filtrelenmisRoleler.length);
 }
@@ -580,19 +567,11 @@ function istatistikleriGuncelle() {
 function dinleyicileriKur() {
   document.addEventListener("filtre-degisti", () => uygula());
 
-  const toggleIds = [
-    "filtre-aktif",
-    "filtre-ruhsat",
-    "filtre-puan",
-    "opsiyon-pmr",
-    "opsiyon-dpmr",
-    "opsiyon-fmradyo",
-    "opsiyon-airband",
-    "opsiyon-marine",
-    "opsiyon-simplex",
-    "opsiyon-rxonly",
-  ];
-  toggleIds.forEach((id) => {
+  [
+    "filtre-aktif", "filtre-ruhsat", "filtre-puan",
+    "opsiyon-pmr", "opsiyon-dpmr", "opsiyon-fmradyo",
+    "opsiyon-airband", "opsiyon-marine", "opsiyon-simplex", "opsiyon-rxonly",
+  ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     });
@@ -600,9 +579,7 @@ function dinleyicileriKur() {
 
   // Data source toggles
   ["kaynak-amatortelsizcilik", "kaynak-tarole"].forEach((id) => {
-    document.getElementById(id)?.addEventListener("change", () => {
-      kaynakDegisti();
-    });
+    document.getElementById(id)?.addEventListener("change", () => kaynakDegisti());
   });
 
   ["mod-select", "guc-select", "kanal-format-select"].forEach((id) => {
@@ -612,9 +589,7 @@ function dinleyicileriKur() {
   });
 
   document.querySelectorAll("input[data-bant]").forEach((cb) => {
-    cb.addEventListener("change", () => {
-      document.dispatchEvent(new CustomEvent("filtre-degisti"));
-    });
+    cb.addEventListener("change", () => document.dispatchEvent(new CustomEvent("filtre-degisti")));
   });
 
   document.getElementById("tablo-arama")?.addEventListener("input", () => {
@@ -659,13 +634,11 @@ function bannerGoster(tip, mesaj) {
   const container = document.getElementById("banner-container");
   if (!container) return;
   while (container.firstChild) container.removeChild(container.firstChild);
-
   const banner = document.createElement("div");
   banner.className = "banner banner-" + tip;
   const span = document.createElement("span");
   span.textContent = mesaj;
   banner.appendChild(span);
-
   const btn = document.createElement("button");
   btn.className = "btn-secondary";
   btn.textContent = "Tekrar Dene";
