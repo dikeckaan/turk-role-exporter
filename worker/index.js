@@ -16,6 +16,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Expose-Headers": "X-Cache-Time",
 };
 
 const UPSTREAM_URL = "https://amatortelsizcilik.com.tr/roleler/data.json";
