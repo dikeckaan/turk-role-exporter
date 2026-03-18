@@ -145,7 +145,9 @@ function kaynaklariMergeEt() {
   const gorulenFrekSehir = new Set();
 
   function ekle(role) {
-    const frek = role.frekans || role.frequency || "";
+    const rawFrek = role.frekans || role.frequency || "";
+    // Normalize: "145.700" and "145.70000" → "145.70000"
+    const frek = parseFloat(rawFrek) ? parseFloat(rawFrek).toFixed(5) : rawFrek;
     const sehir = (role.sehir || role.city || "").toLowerCase();
     const key = frek + "_" + sehir;
     if (gorulenFrekSehir.has(key)) return;

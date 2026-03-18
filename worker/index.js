@@ -562,7 +562,7 @@ function isEmptyResult(data) {
 
 async function cachedHandler(cacheId, ctx, producer) {
   const cache = caches.default;
-  const cacheUrl = TAROLE_BASE + "/__cache__/v2/" + cacheId;
+  const cacheUrl = TAROLE_BASE + "/__cache__/v3/" + cacheId;
   const cacheKey = new Request(cacheUrl, { method: "GET" });
 
   const cached = await cache.match(cacheKey);
