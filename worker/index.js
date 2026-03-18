@@ -5,10 +5,10 @@
  * so it automatically adapts when new cities/pages are added.
  *
  * Endpoints:
- *   GET /api/roleler            → proxy amatortelsizcilik.com.tr (10min cache)
- *   GET /api/tarole/roleler     → dynamic scrape VHF/UHF/DMR pages (1hr cache)
- *   GET /api/tarole/talkgruplar → scrape talk-gruplar page (1hr cache)
- *   GET /api/tarole/simplex     → scrape simplex page (1hr cache)
+ *   GET /api/roleler            → proxy amatortelsizcilik.com.tr (4hr cache)
+ *   GET /api/tarole/roleler     → dynamic scrape VHF/UHF/DMR pages (4hr cache)
+ *   GET /api/tarole/talkgruplar → scrape talk-gruplar page (4hr cache)
+ *   GET /api/tarole/simplex     → scrape simplex page (4hr cache)
  *   GET /api/tarole/debug       → diagnostic info (no cache)
  */
 
@@ -19,8 +19,8 @@ const CORS_HEADERS = {
 };
 
 const UPSTREAM_URL = "https://amatortelsizcilik.com.tr/roleler/data.json";
-const CACHE_TTL = 600; // 10 min
-const TAROLE_CACHE_TTL = 3600; // 1 hr
+const CACHE_TTL = 14400; // 4 hours
+const TAROLE_CACHE_TTL = 14400; // 4 hours
 const TAROLE_BASE = "https://www.ta-role.com";
 const FETCH_TIMEOUT = 20000; // 20s per page
 
