@@ -1,11 +1,14 @@
-// harita.js - Leaflet map module for TA region polygons and repeater pins
+// harita.js - Leaflet map with real Turkey province boundaries
 // Leaflet (L) is loaded globally via CDN
 
-// Module-level state
 let map;
 let pinKatmani;
-let bolgeKatmanlari = {};
-let seciliBolgeler = new Set(["TA1", "TA2", "TA3", "TA4", "TA5", "TA6", "TA7"]);
+let geoJsonKatmani;
+let seciliBolgeler = new Set(["TA1", "TA2", "TA3", "TA4", "TA5", "TA6", "TA7", "TA8", "TA9"]);
+let seciliSehirler = new Set();
+let ilKatmanlari = {}; // key (normalized city name) → layer
+let roleSayilari = {}; // key → repeater count
+let _haritadanGelen = false; // prevent sync loops
 
 // TA region colors
 const RENKLER = {
@@ -16,107 +19,151 @@ const RENKLER = {
   TA5: "#bb86fc",
   TA6: "#03dac6",
   TA7: "#cf6679",
+  TA8: "#ff7043",
+  TA9: "#7c4dff",
 };
 
-// Approximate TA region polygon coordinates [lat, lng]
-const BOLGE_KOORDINATLARI = {
-  TA1: [[42.1, 26.0], [42.1, 30.5], [40.0, 30.5], [39.5, 29.0], [39.6, 26.0]],
-  TA2: [[41.5, 30.5], [41.8, 36.5], [38.5, 36.5], [38.5, 32.0], [39.5, 30.5]],
-  TA3: [[41.0, 38.5], [41.5, 43.5], [39.0, 44.0], [39.0, 38.5]],
-  TA4: [[39.5, 26.0], [39.5, 31.0], [37.0, 31.0], [36.5, 27.0], [37.0, 26.0]],
-  TA5: [[38.5, 31.0], [38.5, 37.0], [36.0, 37.0], [36.0, 31.0]],
-  TA6: [[42.1, 30.5], [42.1, 38.5], [41.0, 38.5], [40.5, 36.5], [41.5, 30.5]],
-  TA7: [[39.0, 37.0], [39.5, 44.0], [37.0, 45.0], [36.5, 37.0]],
-};
-
-// Returns polygon style based on selection state
-function _bolgeStili(bolgeAdi, secili) {
+function _ilStili(tabolge, secili) {
+  const renk = RENKLER[tabolge] || "#666";
   return {
-    color: RENKLER[bolgeAdi],
-    fillColor: RENKLER[bolgeAdi],
-    fillOpacity: secili ? 0.15 : 0.03,
-    weight: secili ? 2 : 1,
+    color: secili ? renk : "rgba(255,255,255,0.2)",
+    fillColor: renk,
+    fillOpacity: secili ? 0.35 : 0.08,
+    weight: secili ? 2 : 0.5,
   };
 }
 
-export function haritaBaslat() {
-  // Create map centered on Turkey
-  map = L.map("harita").setView([39.0, 35.0], 6);
+function _highlightStili(tabolge) {
+  const renk = RENKLER[tabolge] || "#666";
+  return {
+    color: "#fff",
+    fillColor: renk,
+    fillOpacity: 0.5,
+    weight: 2.5,
+  };
+}
 
-  // Add OpenStreetMap tile layer
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+export async function haritaBaslat() {
+  map = L.map("harita", {
+    zoomControl: true,
+    scrollWheelZoom: true,
+  }).setView([39.0, 35.5], 6);
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
     maxZoom: 19,
+    subdomains: "abcd",
   }).addTo(map);
 
-  // Create pin layer group and add to map
   pinKatmani = L.layerGroup().addTo(map);
 
-  // Create TA region polygons
-  for (const [bolgeAdi, koordinatlar] of Object.entries(BOLGE_KOORDINATLARI)) {
-    const secili = seciliBolgeler.has(bolgeAdi);
-    const stil = _bolgeStili(bolgeAdi, secili);
+  // Ensure pins always render above province polygons
+  map.createPane("pinPane");
+  map.getPane("pinPane").style.zIndex = 650;
 
-    const polygon = L.polygon(koordinatlar, stil);
+  // Load GeoJSON
+  try {
+    const resp = await fetch("data/turkey-provinces.json");
+    const geojson = await resp.json();
 
-    // Permanent centered tooltip with TA name
-    polygon.bindTooltip(bolgeAdi, {
-      permanent: true,
-      direction: "center",
-      className: "bolge-tooltip",
-    });
+    geoJsonKatmani = L.geoJSON(geojson, {
+      style: (feature) => {
+        // Initially all selected
+        return _ilStili(feature.properties.tabolge, true);
+      },
+      onEachFeature: (feature, layer) => {
+        const key = feature.properties.key;
+        const tabolge = feature.properties.tabolge;
+        ilKatmanlari[key] = layer;
 
-    // Click handler: toggle selection
-    polygon.on("click", () => {
-      if (seciliBolgeler.has(bolgeAdi)) {
-        seciliBolgeler.delete(bolgeAdi);
-      } else {
-        seciliBolgeler.add(bolgeAdi);
-      }
+        // Hover tooltip
+        layer.bindTooltip("", {
+          sticky: true,
+          direction: "top",
+          className: "il-tooltip",
+          offset: [0, -10],
+        });
 
-      const secimiVar = seciliBolgeler.has(bolgeAdi);
+        // Hover effects
+        layer.on("mouseover", () => {
+          const count = roleSayilari[key] || 0;
+          layer.setTooltipContent(
+            `<strong>${feature.properties.name}</strong> (${tabolge})<br>${count} röle`
+          );
+          if (!layer._isClicking) {
+            layer.setStyle(_highlightStili(tabolge));
+            layer.bringToFront();
+          }
+        });
 
-      // Update polygon style
-      polygon.setStyle(_bolgeStili(bolgeAdi, secimiVar));
+        layer.on("mouseout", () => {
+          if (!layer._isClicking) {
+            const secili = seciliSehirler.has(key);
+            layer.setStyle(_ilStili(tabolge, secili));
+          }
+        });
 
-      // Sync checkbox
-      const checkbox = document.querySelector(`input[data-bolge="${bolgeAdi}"]`);
-      if (checkbox) {
-        checkbox.checked = secimiVar;
-      }
+        // Click → toggle city
+        layer.on("click", () => {
+          layer._isClicking = true;
+          if (seciliSehirler.has(key)) {
+            seciliSehirler.delete(key);
+          } else {
+            seciliSehirler.add(key);
+          }
+          const secili = seciliSehirler.has(key);
+          layer.setStyle(_ilStili(tabolge, secili));
 
-      // Dispatch custom event
-      document.dispatchEvent(new CustomEvent("filtre-degisti"));
-    });
+          // Sync city checkbox in filter panel (flag prevents re-sync back)
+          _haritadanGelen = true;
+          const cb = document.querySelector(`input[data-sehir="${key}"]`);
+          if (cb && cb.checked !== secili) {
+            cb.checked = secili;
+          }
+          document.dispatchEvent(new CustomEvent("filtre-degisti"));
+          _haritadanGelen = false;
+          setTimeout(() => { layer._isClicking = false; }, 100);
+        });
+      },
+    }).addTo(map);
 
-    polygon.addTo(map);
-    bolgeKatmanlari[bolgeAdi] = polygon;
+    // Fit to Turkey bounds
+    map.fitBounds(geoJsonKatmani.getBounds(), { padding: [10, 10] });
+
+    // Initialize all cities as selected
+    for (const key of Object.keys(ilKatmanlari)) {
+      seciliSehirler.add(key);
+    }
+  } catch (e) {
+    console.error("GeoJSON yüklenemedi:", e);
   }
 }
 
 export function pinleriGuncelle(roleler) {
-  // Clear existing pins
   pinKatmani.clearLayers();
 
+  // Count repeaters per city for tooltip
+  roleSayilari = {};
   for (const rol of roleler) {
-    // Skip roles without coordinates
+    const key = (rol.sehir || "").toLowerCase();
+    if (key) roleSayilari[key] = (roleSayilari[key] || 0) + 1;
+  }
+
+  for (const rol of roleler) {
     if (rol.lat == null || rol.lon == null) continue;
 
-    // Determine color based on digital/analog
     const renk =
       rol.digital === 1 || rol.digital === 2 ? "#bb86fc" : "#4ecca3";
 
-    // Create circle marker
     const marker = L.circleMarker([rol.lat, rol.lon], {
       radius: 6,
       fillColor: renk,
       color: "#ffffff",
       weight: 1,
       fillOpacity: 0.8,
+      pane: "pinPane",
     });
 
-    // Build popup content
     const dijital = rol.digital === 1 || rol.digital === 2;
     const up = rol.thumbs_up || 0;
     const total = up + (rol.thumbs_down || 0);
@@ -143,14 +190,39 @@ export function pinleriGuncelle(roleler) {
   }
 }
 
+// Called from filter panel TA bölge checkboxes
 export function bolgeSeciminiSenkronla(secili) {
-  // Update seciliBolgeler Set
   seciliBolgeler = new Set(secili);
 
-  // Update each polygon style based on new selection
-  for (const [bolgeAdi, polygon] of Object.entries(bolgeKatmanlari)) {
-    const secimiVar = seciliBolgeler.has(bolgeAdi);
-    polygon.setStyle(_bolgeStili(bolgeAdi, secimiVar));
+  // Update each province style and sync city checkboxes
+  for (const [key, layer] of Object.entries(ilKatmanlari)) {
+    const tabolge = layer.feature.properties.tabolge;
+    const bolgeSecili = seciliBolgeler.has(tabolge);
+
+    if (bolgeSecili) {
+      seciliSehirler.add(key);
+    } else {
+      seciliSehirler.delete(key);
+    }
+    layer.setStyle(_ilStili(tabolge, bolgeSecili));
+
+    // Sync city checkbox
+    const cb = document.querySelector(`input[data-sehir="${key}"]`);
+    if (cb) cb.checked = bolgeSecili;
+  }
+}
+
+// Called from filter panel city checkboxes → update map highlights
+export function sehirSeciminiSenkronla(seciliSehirListesi) {
+  // Skip if this change originated from map click (prevent loop)
+  if (_haritadanGelen) return;
+
+  seciliSehirler = new Set(seciliSehirListesi);
+
+  for (const [key, layer] of Object.entries(ilKatmanlari)) {
+    const tabolge = layer.feature.properties.tabolge;
+    const secili = seciliSehirler.has(key);
+    layer.setStyle(_ilStili(tabolge, secili));
   }
 }
 

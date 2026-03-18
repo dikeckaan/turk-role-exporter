@@ -12,6 +12,7 @@ import {
   haritaBaslat,
   pinleriGuncelle,
   bolgeSeciminiSenkronla,
+  sehirSeciminiSenkronla,
 } from "./harita.js";
 import {
   ekKanalSayisi,
@@ -69,7 +70,7 @@ function kaynakDurumGuncelle(kaynak, durum, mesaj) {
 
 async function basla() {
   cihazSeciciDoldur();
-  haritaBaslat();
+  await haritaBaslat();
   tabloBasliklariAyarla();
   dinleyicileriKur();
 
@@ -436,6 +437,7 @@ function sehirListesiDoldur() {
     cb.checked = oncekiTumu.size === 0 || oncekiSecili.has(s) || !oncekiTumu.has(s);
     cb.addEventListener("change", () => {
       ilceListesiDoldur();
+      sehirSeciminiSenkronla(getSeciliSehirler());
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     });
     label.appendChild(cb);
@@ -667,12 +669,14 @@ function dinleyicileriKur() {
   document.getElementById("sehir-tumunu-sec")?.addEventListener("click", () => {
     document.querySelectorAll("input[data-sehir]").forEach((cb) => (cb.checked = true));
     ilceListesiDoldur();
+    sehirSeciminiSenkronla(getSeciliSehirler());
     document.dispatchEvent(new CustomEvent("filtre-degisti"));
   });
 
   document.getElementById("sehir-temizle")?.addEventListener("click", () => {
     document.querySelectorAll("input[data-sehir]").forEach((cb) => (cb.checked = false));
     ilceListesiDoldur();
+    sehirSeciminiSenkronla(getSeciliSehirler());
     document.dispatchEvent(new CustomEvent("filtre-degisti"));
   });
 
