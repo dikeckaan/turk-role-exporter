@@ -41,8 +41,10 @@ function kalanCacheSuresi(yuklenmeZamani) {
   if (kalan <= 0) return "yenilenecek";
   const saat = Math.floor(kalan / 3600000);
   const dk = Math.floor((kalan % 3600000) / 60000);
-  if (saat > 0) return `${saat}s ${dk}dk sonra yenilenecek`;
-  return `${dk}dk sonra yenilenecek`;
+  const sn = Math.floor((kalan % 60000) / 1000);
+  if (saat > 0) return `${saat}s ${dk}dk ${sn}sn sonra yenilenecek`;
+  if (dk > 0) return `${dk}dk ${sn}sn sonra yenilenecek`;
+  return `${sn}sn sonra yenilenecek`;
 }
 
 function cacheBilgisiGuncelle() {
@@ -98,8 +100,8 @@ async function basla() {
   tabloBasliklariAyarla();
   dinleyicileriKur();
 
-  // Update cache countdown every minute
-  setInterval(cacheBilgisiGuncelle, 60000);
+  // Update cache countdown every second
+  setInterval(cacheBilgisiGuncelle, 1000);
 
   // Always load primary source
   await amatortelsizcilikYukle();
