@@ -1,3 +1,5 @@
+import { normalizeTurkce } from "./utils.js";
+
 /**
  * frekanslar.js
  * Static frequency data for FM broadcast, aviation (airband), maritime (marine),
@@ -364,7 +366,7 @@ export function fmIstasyonlariGetir(sehirIdleri) {
  */
 export function sehirdenFmKey(sehirAdi) {
   if (!sehirAdi) return null;
-  const norm = sehirAdi.toLowerCase().replace(/[İı]/g, "i").trim();
+  const norm = normalizeTurkce(sehirAdi).trim();
   return SEHIR_FM_MAP[norm] || FM_SEHIRLER[norm] ? norm : null;
 }
 

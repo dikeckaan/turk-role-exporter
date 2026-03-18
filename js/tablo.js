@@ -1,4 +1,4 @@
-import { puanHesapla, kanalAdiOlustur, txFrekansHesapla } from "./utils.js";
+import { puanHesapla, kanalAdiOlustur, txFrekansHesapla, isDijital } from "./utils.js";
 
 let siralamaAlani = null;
 let siralamaYonu = "asc";
@@ -62,7 +62,7 @@ export function tabloGuncelle(roleler, kanalAdiFormati, shiftHesaplama) {
       role.frekans || "-",
       txFrekansHesapla(role, shiftHesaplama) || "-",
       role.bant || "-",
-      role.digital === 1 || role.digital === 2 ? "Dijital" : "Analog",
+      isDijital(role) ? "Dijital" : "Analog",
       role.guc ? role.guc + "W" : "-",
       role.yukseklik ? role.yukseklik + "m" : "-",
       puanHesapla(role) + "%",

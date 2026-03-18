@@ -201,6 +201,27 @@ export function kanalAdiOlustur(role, format = "plaka-konum-bant") {
  * @param {object} role
  * @returns {number}
  */
+/**
+ * Normalizes Turkish characters to lowercase ASCII.
+ * Unlike temizleTurkce, keeps all characters (no stripping).
+ */
+export function normalizeTurkce(text) {
+  if (!text) return "";
+  return text
+    .replace(/\u0130/g, "i").replace(/\u0131/g, "i")
+    .replace(/[\u015e\u015f]/g, "s").replace(/[\u00c7\u00e7]/g, "c")
+    .replace(/[\u011e\u011f]/g, "g").replace(/[\u00d6\u00f6]/g, "o")
+    .replace(/[\u00dc\u00fc]/g, "u").replace(/\u0307/g, "")
+    .toLowerCase();
+}
+
+/**
+ * Returns true if a repeater role uses digital mode (DMR etc).
+ */
+export function isDijital(role) {
+  return role.digital === 1 || role.digital === 2;
+}
+
 export function puanHesapla(role) {
   const up = role.thumbs_up || 0;
   const down = role.thumbs_down || 0;

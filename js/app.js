@@ -19,6 +19,7 @@ import {
   kanalDagilimi,
   sehirdenFmKey,
 } from "./frekanslar.js";
+import { normalizeTurkce, isDijital } from "./utils.js";
 
 // ─── State ────────────────────────────────────────────────
 let amatortelsizcilikRoleler = [];
@@ -48,21 +49,9 @@ function kalanCacheSuresi(yuklenmeZamani) {
 }
 
 function cacheZamaniHesapla(cacheTime, age) {
-  // Priority: X-Cache-Time header > Age header > now
   if (cacheTime) return new Date(cacheTime).getTime();
   if (age > 0) return Date.now() - age * 1000;
   return Date.now();
-}
-
-function cacheZamaniKaydet(anahtar, zaman) {
-  try { localStorage.setItem(anahtar, String(zaman)); } catch {}
-}
-
-function cacheZamaniOku(anahtar) {
-  try {
-    const v = localStorage.getItem(anahtar);
-    return v ? parseInt(v, 10) : null;
-  } catch { return null; }
 }
 
 function cacheBilgisiGuncelle() {
@@ -118,8 +107,16 @@ async function basla() {
   tabloBasliklariAyarla();
   dinleyicileriKur();
 
-  // Update cache countdown every second
-  setInterval(cacheBilgisiGuncelle, 1000);
+  // Update cache countdown every second (pause when tab hidden)
+  let cacheInterval = setInterval(cacheBilgisiGuncelle, 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      clearInterval(cacheInterval);
+    } else {
+      cacheBilgisiGuncelle();
+      cacheInterval = setInterval(cacheBilgisiGuncelle, 1000);
+    }
+  });
 
   // Always load primary source
   await amatortelsizcilikYukle();
@@ -149,7 +146,7 @@ async function amatortelsizcilikYukle() {
     amatortelsizcilikRoleler = data;
     amatortelsizcilikYuklendi = true;
     amatortelsizcilikYuklenmeZamani = cacheZamaniHesapla(cacheTime, age);
-    cacheZamaniKaydet("cache_amatortelsizcilik", amatortelsizcilikYuklenmeZamani);
+
 
     const msg = fallback
       ? `✓ ${data.length} role (fallback)`
@@ -174,12 +171,13 @@ async function amatortelsizcilikYukle() {
 async function taroleYukle() {
   kaynakDurumGuncelle("tarole", "yukleniyor", "Yukleniyor... (bu islem yavas olabilir)");
   try {
-    taroleRoleler = await taroleRoleleriGetir();
+    const { data: taroleData, cacheTime, age } = await taroleRoleleriGetir();
+    taroleRoleler = taroleData;
     taroleYuklendi = taroleRoleler.length > 0;
 
     if (taroleYuklendi) {
-      taroleYuklenmeZamani = cacheZamaniHesapla(taroleRoleler._cacheTime, taroleRoleler._age);
-      cacheZamaniKaydet("cache_tarole", taroleYuklenmeZamani);
+      taroleYuklenmeZamani = cacheZamaniHesapla(cacheTime, age);
+
       kaynakDurumGuncelle("tarole", "basarili", `✓ ${taroleRoleler.length} role yuklendi`);
       cacheBilgisiGuncelle();
       kaynaklariMergeEt();
@@ -227,22 +225,13 @@ function dogruBolge(sehir, mevcutBolge) {
   return SEHIR_TABOLGE[sehir] || mevcutBolge || "";
 }
 
-function normalizeKey(str) {
-  return str
-    .replace(/\u0130/g, "i").replace(/\u0131/g, "i")
-    .replace(/[\u015e\u015f]/g, "s").replace(/[\u00c7\u00e7]/g, "c")
-    .replace(/[\u011e\u011f]/g, "g").replace(/[\u00d6\u00f6]/g, "o")
-    .replace(/[\u00dc\u00fc]/g, "u").replace(/\u0307/g, "")
-    .toLowerCase();
-}
-
 function kaynaklariMergeEt() {
   const sonuc = [];
   const gorulenFrekSehir = new Set();
 
   function ekle(role) {
     // Normalize sehir for Turkish char consistency
-    const sehir = normalizeKey(role.sehir || role.city || "");
+    const sehir = normalizeTurkce(role.sehir || role.city || "");
 
     // Fix tabolge from definitive mapping (respects multi-region cities)
     const duzeltilmisBolge = dogruBolge(sehir, role.tabolge);
@@ -480,7 +469,7 @@ function sehirListesiDoldur() {
   const oncekiSecili = new Set(eskiCheckboxlar.filter((cb) => cb.checked).map((cb) => cb.dataset.sehir));
   const oncekiTumu = new Set(eskiCheckboxlar.map((cb) => cb.dataset.sehir));
   const sehirler = benzersizSehirler(birlesikRoleler);
-  while (container.firstChild) container.removeChild(container.firstChild);
+  container.replaceChildren();
   for (const s of sehirler) {
     const label = document.createElement("label");
     const cb = document.createElement("input");
@@ -505,7 +494,7 @@ function ilceListesiDoldur() {
   if (!container) return;
   const seciliSehirler = getSeciliSehirler();
   const ilceler = benzersizIlceler(birlesikRoleler, seciliSehirler);
-  while (container.firstChild) container.removeChild(container.firstChild);
+  container.replaceChildren();
   for (const i of ilceler) {
     const label = document.createElement("label");
     const cb = document.createElement("input");
@@ -525,7 +514,7 @@ function taBolgesiDoldur() {
   const container = document.getElementById("ta-bolge-listesi");
   if (!container) return;
   const bolgeler = benzersizTaBolgeleri(birlesikRoleler);
-  while (container.firstChild) container.removeChild(container.firstChild);
+  container.replaceChildren();
   for (const b of bolgeler) {
     const label = document.createElement("label");
     const cb = document.createElement("input");
@@ -615,8 +604,8 @@ function uygula() {
 
   if (filtreler.mod === "dijital-oncelikli") {
     filtrelenmisRoleler.sort((a, b) => {
-      const da = a.digital === 1 || a.digital === 2 ? 0 : 1;
-      const db = b.digital === 1 || b.digital === 2 ? 0 : 1;
+      const da = isDijital(a) ? 0 : 1;
+      const db = isDijital(b) ? 0 : 1;
       return da - db;
     });
   }
@@ -664,14 +653,22 @@ function uygula() {
 
 function istatistikleriGuncelle() {
   const veri = birlesikRoleler;
+  let aktif = 0, vhf = 0, uhf = 0, aprs = 0, dijital = 0;
+  for (const r of veri) {
+    if (r.durum === true) aktif++;
+    if (r.bant === "VHF") vhf++;
+    else if (r.bant === "UHF") uhf++;
+    else if (r.bant === "APRS") aprs++;
+    if (isDijital(r)) dijital++;
+  }
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   set("stat-toplam", veri.length);
-  set("stat-aktif", veri.filter((r) => r.durum === true).length);
-  set("stat-pasif", veri.filter((r) => r.durum !== true).length);
-  set("stat-vhf", veri.filter((r) => r.bant === "VHF").length);
-  set("stat-uhf", veri.filter((r) => r.bant === "UHF").length);
-  set("stat-aprs", veri.filter((r) => r.bant === "APRS").length);
-  set("stat-dijital", veri.filter((r) => r.digital === 1 || r.digital === 2).length);
+  set("stat-aktif", aktif);
+  set("stat-pasif", veri.length - aktif);
+  set("stat-vhf", vhf);
+  set("stat-uhf", uhf);
+  set("stat-aprs", aprs);
+  set("stat-dijital", dijital);
   set("stat-tarole", taroleRoleler.length);
   set("stat-filtrelenmis", filtrelenmisRoleler.length);
 }
@@ -749,7 +746,7 @@ function dinleyicileriKur() {
 function bannerGoster(tip, mesaj) {
   const container = document.getElementById("banner-container");
   if (!container) return;
-  while (container.firstChild) container.removeChild(container.firstChild);
+  container.replaceChildren();
   const banner = document.createElement("div");
   banner.className = "banner banner-" + tip;
   const span = document.createElement("span");

@@ -5,7 +5,7 @@
  *           DMR talk groups, and digital simplex channels.
  */
 
-import { kanalAdiOlustur, txFrekansHesapla } from "./utils.js";
+import { kanalAdiOlustur, txFrekansHesapla, isDijital } from "./utils.js";
 import {
   fmIstasyonlariGetir,
   AIRBAND_FREKANSLARI,
@@ -211,7 +211,7 @@ function cpsCsvOlustur(roleler, profil, opsiyonlar) {
   for (const role of roleler) {
     const col = Array(sutunSayisi).fill("0");
 
-    col[0] = (role.digital === 1 || role.digital === 2) ? "2" : "1";
+    col[0] = isDijital(role) ? "2" : "1";
     col[1] = kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati);
     col[2] = String(role.frekans || "").replace(",", ".");
     col[3] = txFrekansHesapla(role, profil.shiftHesaplama);

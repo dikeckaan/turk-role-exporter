@@ -1,6 +1,8 @@
 // harita.js - Leaflet map with real Turkey province boundaries
 // Leaflet (L) is loaded globally via CDN
 
+import { isDijital, normalizeTurkce } from "./utils.js";
+
 let map;
 let pinKatmani;
 let geoJsonKatmani;
@@ -8,7 +10,8 @@ let seciliBolgeler = new Set(["TA1", "TA2", "TA3", "TA4", "TA5", "TA6", "TA7", "
 let seciliSehirler = new Set();
 let ilKatmanlari = {}; // key (normalized city name) → layer
 let roleSayilari = {}; // key → repeater count
-let _haritadanGelen = false; // prevent sync loops
+let _syncFromMap = false; // prevent sync loops
+let clickingLayer = null; // tracks layer currently being clicked (replaces monkey-patch)
 
 // TA region colors
 const RENKLER = {
@@ -90,14 +93,14 @@ export async function haritaBaslat() {
           layer.setTooltipContent(
             `<strong>${feature.properties.name}</strong> (${tabolge})<br>${count} röle`
           );
-          if (!layer._isClicking) {
+          if (clickingLayer !== layer) {
             layer.setStyle(_highlightStili(tabolge));
             layer.bringToFront();
           }
         });
 
         layer.on("mouseout", () => {
-          if (!layer._isClicking) {
+          if (clickingLayer !== layer) {
             const secili = seciliSehirler.has(key);
             layer.setStyle(_ilStili(tabolge, secili));
           }
@@ -105,7 +108,7 @@ export async function haritaBaslat() {
 
         // Click → toggle city
         layer.on("click", () => {
-          layer._isClicking = true;
+          clickingLayer = layer;
           if (seciliSehirler.has(key)) {
             seciliSehirler.delete(key);
           } else {
@@ -115,14 +118,14 @@ export async function haritaBaslat() {
           layer.setStyle(_ilStili(tabolge, secili));
 
           // Sync city checkbox in filter panel (flag prevents re-sync back)
-          _haritadanGelen = true;
+          _syncFromMap = true;
           const cb = document.querySelector(`input[data-sehir="${key}"]`);
           if (cb && cb.checked !== secili) {
             cb.checked = secili;
           }
           document.dispatchEvent(new CustomEvent("filtre-degisti"));
-          _haritadanGelen = false;
-          setTimeout(() => { layer._isClicking = false; }, 100);
+          _syncFromMap = false;
+          setTimeout(() => { clickingLayer = null; }, 100);
         });
       },
     }).addTo(map);
@@ -145,15 +148,15 @@ export function pinleriGuncelle(roleler) {
   // Count repeaters per city for tooltip
   roleSayilari = {};
   for (const rol of roleler) {
-    const key = (rol.sehir || "").toLowerCase();
+    const key = normalizeTurkce(rol.sehir);
     if (key) roleSayilari[key] = (roleSayilari[key] || 0) + 1;
   }
 
   for (const rol of roleler) {
     if (rol.lat == null || rol.lon == null) continue;
 
-    const renk =
-      rol.digital === 1 || rol.digital === 2 ? "#bb86fc" : "#4ecca3";
+    const dijital = isDijital(rol);
+    const renk = dijital ? "#bb86fc" : "#4ecca3";
 
     const marker = L.circleMarker([rol.lat, rol.lon], {
       radius: 6,
@@ -163,8 +166,6 @@ export function pinleriGuncelle(roleler) {
       fillOpacity: 0.8,
       pane: "pinPane",
     });
-
-    const dijital = rol.digital === 1 || rol.digital === 2;
     const up = rol.thumbs_up || 0;
     const total = up + (rol.thumbs_down || 0);
     const popupDiv = document.createElement("div");
@@ -215,7 +216,7 @@ export function bolgeSeciminiSenkronla(secili) {
 // Called from filter panel city checkboxes → update map highlights
 export function sehirSeciminiSenkronla(seciliSehirListesi) {
   // Skip if this change originated from map click (prevent loop)
-  if (_haritadanGelen) return;
+  if (_syncFromMap) return;
 
   seciliSehirler = new Set(seciliSehirListesi);
 
@@ -226,6 +227,3 @@ export function sehirSeciminiSenkronla(seciliSehirListesi) {
   }
 }
 
-export function getSeciliBolgeler() {
-  return [...seciliBolgeler];
-}

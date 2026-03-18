@@ -618,9 +618,7 @@ async function cachedHandler(cacheId, ctx, producer) {
   if (ctx?.waitUntil) ctx.waitUntil(cache.put(cacheKey, resp.clone()));
   else await cache.put(cacheKey, resp.clone());
 
-  const freshResp = jsonResponse(data, 200, TAROLE_CACHE_TTL);
-  freshResp.headers.set("X-Cache-Time", now);
-  return freshResp;
+  return resp;
 }
 
 // ─── ta-role route handlers ──────────────────────────────────────────────────
@@ -649,25 +647,15 @@ async function handleTaroleRoleler(request, ctx) {
 
     let pageList;
     let forcedBant;
-    if (part === "vhf1") {
-      const half = Math.ceil(pages.vhfPages.length / 2);
-      pageList = pages.vhfPages.slice(0, half);
-      forcedBant = "VHF";
-    } else if (part === "vhf2") {
-      const half = Math.ceil(pages.vhfPages.length / 2);
-      pageList = pages.vhfPages.slice(half);
-      forcedBant = "VHF";
-    } else if (part === "uhf1") {
-      const half = Math.ceil(pages.uhfPages.length / 2);
-      pageList = pages.uhfPages.slice(0, half);
-      forcedBant = "UHF";
-    } else if (part === "uhf2") {
-      const half = Math.ceil(pages.uhfPages.length / 2);
-      pageList = pages.uhfPages.slice(half);
-      forcedBant = "UHF";
-    } else if (part === "dmr") {
+    if (part === "dmr") {
       pageList = pages.dmrPages;
       forcedBant = null;
+    } else {
+      const isVhf = part.startsWith("vhf");
+      const source = isVhf ? pages.vhfPages : pages.uhfPages;
+      const half = Math.ceil(source.length / 2);
+      pageList = part.endsWith("1") ? source.slice(0, half) : source.slice(half);
+      forcedBant = isVhf ? "VHF" : "UHF";
     }
 
     const results = await batchFetch(pageList, 6);

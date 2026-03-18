@@ -1,4 +1,4 @@
-import { puanHesapla } from "./utils.js";
+import { puanHesapla, isDijital } from "./utils.js";
 
 export function filtrele(roleler, filtreler, cihazProfil) {
   let sonuc = [...roleler];
@@ -30,9 +30,7 @@ export function filtrele(roleler, filtreler, cihazProfil) {
       (role) => role.digital === 0 || role.digital === null || !role.digital
     );
   } else if (filtreler.mod === "sadece-dijital") {
-    sonuc = sonuc.filter(
-      (role) => role.digital === 1 || role.digital === 2
-    );
+    sonuc = sonuc.filter(isDijital);
   }
   // "hepsi" ve "dijital-oncelikli": cihaz her iki modu destekliyorsa filtreleme yok
 
