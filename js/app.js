@@ -47,6 +47,24 @@ function kalanCacheSuresi(yuklenmeZamani) {
   return `${sn}sn sonra yenilenecek`;
 }
 
+function cacheZamaniHesapla(cacheTime, age) {
+  // Priority: X-Cache-Time header > Age header > now
+  if (cacheTime) return new Date(cacheTime).getTime();
+  if (age > 0) return Date.now() - age * 1000;
+  return Date.now();
+}
+
+function cacheZamaniKaydet(anahtar, zaman) {
+  try { localStorage.setItem(anahtar, String(zaman)); } catch {}
+}
+
+function cacheZamaniOku(anahtar) {
+  try {
+    const v = localStorage.getItem(anahtar);
+    return v ? parseInt(v, 10) : null;
+  } catch { return null; }
+}
+
 function cacheBilgisiGuncelle() {
   const elAmt = document.getElementById("cache-bilgi-amatortelsizcilik");
   const elTr = document.getElementById("cache-bilgi-tarole");
@@ -127,12 +145,11 @@ function kaynakAktifMi(kaynak) {
 async function amatortelsizcilikYukle() {
   kaynakDurumGuncelle("amatortelsizcilik", "yukleniyor", "Yukleniyor...");
   try {
-    const { data, fallback, cacheTime } = await roleleriGetir();
+    const { data, fallback, cacheTime, age } = await roleleriGetir();
     amatortelsizcilikRoleler = data;
     amatortelsizcilikYuklendi = true;
-    amatortelsizcilikYuklenmeZamani = cacheTime
-      ? new Date(cacheTime).getTime()
-      : Date.now();
+    amatortelsizcilikYuklenmeZamani = cacheZamaniHesapla(cacheTime, age);
+    cacheZamaniKaydet("cache_amatortelsizcilik", amatortelsizcilikYuklenmeZamani);
 
     const msg = fallback
       ? `✓ ${data.length} role (fallback)`
@@ -161,9 +178,8 @@ async function taroleYukle() {
     taroleYuklendi = taroleRoleler.length > 0;
 
     if (taroleYuklendi) {
-      taroleYuklenmeZamani = taroleRoleler._cacheTime
-        ? new Date(taroleRoleler._cacheTime).getTime()
-        : Date.now();
+      taroleYuklenmeZamani = cacheZamaniHesapla(taroleRoleler._cacheTime, taroleRoleler._age);
+      cacheZamaniKaydet("cache_tarole", taroleYuklenmeZamani);
       kaynakDurumGuncelle("tarole", "basarili", `✓ ${taroleRoleler.length} role yuklendi`);
       cacheBilgisiGuncelle();
       kaynaklariMergeEt();

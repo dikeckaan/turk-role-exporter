@@ -16,7 +16,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Expose-Headers": "X-Cache-Time",
+  "Access-Control-Expose-Headers": "X-Cache-Time, Age",
 };
 
 const UPSTREAM_URL = "https://amatortelsizcilik.com.tr/roleler/data.json";
@@ -94,9 +94,7 @@ async function handleRoleler(request, ctx) {
   const cached = await cache.match(cacheKey);
   if (cached) {
     const r = new Response(cached.body, cached);
-    r.headers.set("Access-Control-Allow-Origin", "*");
-    r.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-    r.headers.set("Access-Control-Allow-Headers", "Content-Type");
+    for (const [k, v] of Object.entries(CORS_HEADERS)) r.headers.set(k, v);
     return r;
   }
 
@@ -594,7 +592,7 @@ async function cachedHandler(cacheId, ctx, producer) {
         status: cached.status,
         headers: cached.headers,
       });
-      r.headers.set("Access-Control-Allow-Origin", "*");
+      for (const [k, v] of Object.entries(CORS_HEADERS)) r.headers.set(k, v);
       return r;
     }
   }
