@@ -268,6 +268,23 @@ function slugToLabel(slug) {
 }
 
 /**
+ * Normalizes Turkish characters to ASCII for consistent matching.
+ * İ→i, ı→i, Ş→s, ş→s, Ç→c, ç→c, Ğ→g, ğ→g, Ö→o, ö→o, Ü→u, ü→u
+ */
+function normalizeTurkish(str) {
+  return str
+    .replace(/\u0130/g, "i")   // İ (Turkish capital I with dot)
+    .replace(/\u0131/g, "i")   // ı (Turkish lowercase dotless i)
+    .replace(/[\u015e\u015f]/g, "s")
+    .replace(/[\u00c7\u00e7]/g, "c")
+    .replace(/[\u011e\u011f]/g, "g")
+    .replace(/[\u00d6\u00f6]/g, "o")
+    .replace(/[\u00dc\u00fc]/g, "u")
+    .replace(/\u0307/g, "")    // combining dot above (from İ.toLowerCase())
+    .toLowerCase();
+}
+
+/**
  * Derives sehir (city) name from page slug for data records.
  */
 function slugToSehir(slug) {
@@ -409,7 +426,7 @@ function parseDmrRows(rows, tabolge) {
     else if (timeSlot.includes("TS-2") || timeSlot.includes("TS2")) ts = "TS2";
     else if (timeSlot.includes("TS-1") || timeSlot.includes("TS1")) ts = "TS1";
 
-    const sehir = mevki.split(" ")[0]?.toLowerCase() || "";
+    const sehir = normalizeTurkish(mevki.split(" ")[0] || "");
 
     roleler.push({
       kaynak: "tarole",

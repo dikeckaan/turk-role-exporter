@@ -140,15 +140,67 @@ async function taroleYukle() {
   }
 }
 
+// Official TRAC TA bölge assignments per city (default bölge)
+const SEHIR_TABOLGE = {
+  adana:"TA5",adiyaman:"TA8",afyon:"TA4",agri:"TA9",aksaray:"TA5",
+  amasya:"TA6",ankara:"TA2",antalya:"TA4",ardahan:"TA9",artvin:"TA9",
+  aydin:"TA4",balikesir:"TA3",bartin:"TA2",batman:"TA9",bayburt:"TA7",
+  bilecik:"TA2",bingol:"TA8",bitlis:"TA9",bolu:"TA2",burdur:"TA4",
+  bursa:"TA3",canakkale:"TA3",cankiri:"TA6",corum:"TA6",denizli:"TA4",
+  diyarbakir:"TA8",duzce:"TA2",edirne:"TA1",elazig:"TA8",erzincan:"TA7",
+  erzurum:"TA9",eskisehir:"TA2",gaziantep:"TA8",giresun:"TA7",
+  gumushane:"TA7",hakkari:"TA9",hatay:"TA5",igdir:"TA9",isparta:"TA4",
+  istanbul:"TA1",izmir:"TA3",kahramanmaras:"TA8",karabuk:"TA2",
+  karaman:"TA5",kars:"TA9",kastamonu:"TA6",kayseri:"TA7",kilis:"TA8",
+  kirikkale:"TA2",kirklareli:"TA1",kirsehir:"TA6",kocaeli:"TA2",
+  konya:"TA5",kutahya:"TA4",malatya:"TA8",manisa:"TA3",mardin:"TA8",
+  mersin:"TA5",mugla:"TA4",mus:"TA9",nevsehir:"TA5",nigde:"TA5",
+  ordu:"TA7",osmaniye:"TA5",rize:"TA9",sakarya:"TA2",samsun:"TA6",
+  sanliurfa:"TA8",siirt:"TA9",sinop:"TA6",sirnak:"TA8",sivas:"TA7",
+  tekirdag:"TA1",tokat:"TA6",trabzon:"TA7",tunceli:"TA7",usak:"TA4",
+  van:"TA9",yalova:"TA2",yozgat:"TA6",zonguldak:"TA2",
+};
+
+// Cities that officially span multiple TA regions
+const COKLU_BOLGE = {
+  istanbul: ["TA1", "TA2"],
+  canakkale: ["TA1", "TA3"],
+};
+
+function dogruBolge(sehir, mevcutBolge) {
+  const coklu = COKLU_BOLGE[sehir];
+  if (coklu && coklu.includes(mevcutBolge)) return mevcutBolge;
+  return SEHIR_TABOLGE[sehir] || mevcutBolge || "";
+}
+
+function normalizeKey(str) {
+  return str
+    .replace(/\u0130/g, "i").replace(/\u0131/g, "i")
+    .replace(/[\u015e\u015f]/g, "s").replace(/[\u00c7\u00e7]/g, "c")
+    .replace(/[\u011e\u011f]/g, "g").replace(/[\u00d6\u00f6]/g, "o")
+    .replace(/[\u00dc\u00fc]/g, "u").replace(/\u0307/g, "")
+    .toLowerCase();
+}
+
 function kaynaklariMergeEt() {
   const sonuc = [];
   const gorulenFrekSehir = new Set();
 
   function ekle(role) {
+    // Normalize sehir for Turkish char consistency
+    const sehir = normalizeKey(role.sehir || role.city || "");
+
+    // Fix tabolge from definitive mapping (respects multi-region cities)
+    const duzeltilmisBolge = dogruBolge(sehir, role.tabolge);
+    if (duzeltilmisBolge && role.tabolge !== duzeltilmisBolge) {
+      role = Object.assign({}, role, { tabolge: duzeltilmisBolge });
+    }
+    if (sehir && role.sehir !== sehir) {
+      role = Object.assign({}, role, { sehir });
+    }
+
     const rawFrek = role.frekans || role.frequency || "";
-    // Normalize: "145.700" and "145.70000" → "145.70000"
     const frek = parseFloat(rawFrek) ? parseFloat(rawFrek).toFixed(5) : rawFrek;
-    const sehir = (role.sehir || role.city || "").toLowerCase();
     const key = frek + "_" + sehir;
     if (gorulenFrekSehir.has(key)) return;
     gorulenFrekSehir.add(key);
