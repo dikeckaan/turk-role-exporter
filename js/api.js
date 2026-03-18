@@ -14,7 +14,8 @@ export async function roleleriGetir() {
     if (!response.ok) throw new Error("HTTP " + response.status);
     const data = await response.json();
     if (!Array.isArray(data) || data.length === 0) throw new Error("Bos veri");
-    return { data, fallback: false };
+    const cacheTime = response.headers.get("X-Cache-Time") || null;
+    return { data, fallback: false, cacheTime };
   } catch (err) {
     console.warn("API hatasi, fallback kullaniliyor:", err.message);
     if (FALLBACK_ROLELER && FALLBACK_ROLELER.length > 0) {
@@ -32,6 +33,8 @@ export async function roleleriGetir() {
 export async function taroleRoleleriGetir() {
   const parts = ["vhf1", "vhf2", "uhf1", "uhf2", "dmr"];
 
+  let earliestCacheTime = null;
+
   async function fetchPart(part) {
     try {
       const response = await fetch(
@@ -39,6 +42,8 @@ export async function taroleRoleleriGetir() {
         { signal: AbortSignal.timeout(45000) }
       );
       if (!response.ok) return [];
+      const ct = response.headers.get("X-Cache-Time");
+      if (ct && (!earliestCacheTime || ct < earliestCacheTime)) earliestCacheTime = ct;
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch (err) {
@@ -49,7 +54,9 @@ export async function taroleRoleleriGetir() {
 
   try {
     const results = await Promise.all(parts.map(fetchPart));
-    return results.flat();
+    const flat = results.flat();
+    flat._cacheTime = earliestCacheTime;
+    return flat;
   } catch (err) {
     console.warn("ta-role.com verisi alinamadi:", err.message);
     return [];

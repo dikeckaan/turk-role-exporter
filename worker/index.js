@@ -124,10 +124,12 @@ async function handleRoleler(request, ctx) {
     return jsonResponse({ hata: "Gecersiz veri formati" }, 502);
   }
 
+  const now = new Date().toISOString();
   const respHeaders = {
     ...CORS_HEADERS,
     "Content-Type": "application/json",
     "Cache-Control": `public, max-age=${CACHE_TTL}`,
+    "X-Cache-Time": now,
   };
 
   const responseToCache = new Response(bodyText, { status: 200, headers: respHeaders });
@@ -603,19 +605,23 @@ async function cachedHandler(cacheId, ctx, producer) {
     return jsonResponse(data, 200);
   }
 
+  const now = new Date().toISOString();
   const resp = new Response(JSON.stringify(data), {
     status: 200,
     headers: {
       ...CORS_HEADERS,
       "Content-Type": "application/json",
       "Cache-Control": "public, max-age=" + TAROLE_CACHE_TTL,
+      "X-Cache-Time": now,
     },
   });
 
   if (ctx?.waitUntil) ctx.waitUntil(cache.put(cacheKey, resp.clone()));
   else await cache.put(cacheKey, resp.clone());
 
-  return jsonResponse(data, 200, TAROLE_CACHE_TTL);
+  const freshResp = jsonResponse(data, 200, TAROLE_CACHE_TTL);
+  freshResp.headers.set("X-Cache-Time", now);
+  return freshResp;
 }
 
 // ─── ta-role route handlers ──────────────────────────────────────────────────

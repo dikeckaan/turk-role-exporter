@@ -29,8 +29,32 @@ let seciliCihaz = "quansheng-uv-k5-f4hwn";
 
 let amatortelsizcilikYuklendi = false;
 let taroleYuklendi = false;
+let amatortelsizcilikYuklenmeZamani = null;
+let taroleYuklenmeZamani = null;
+const CACHE_SURESI_MS = 4 * 60 * 60 * 1000; // 4 saat
 
 // ─── Loading UI Helpers ───────────────────────────────────
+
+function kalanCacheSuresi(yuklenmeZamani) {
+  if (!yuklenmeZamani) return "";
+  const kalan = CACHE_SURESI_MS - (Date.now() - yuklenmeZamani);
+  if (kalan <= 0) return "yenilenecek";
+  const saat = Math.floor(kalan / 3600000);
+  const dk = Math.floor((kalan % 3600000) / 60000);
+  if (saat > 0) return `${saat}s ${dk}dk sonra yenilenecek`;
+  return `${dk}dk sonra yenilenecek`;
+}
+
+function cacheBilgisiGuncelle() {
+  const elAmt = document.getElementById("cache-bilgi-amatortelsizcilik");
+  const elTr = document.getElementById("cache-bilgi-tarole");
+  if (elAmt && amatortelsizcilikYuklenmeZamani) {
+    elAmt.textContent = `4 saatlik cache — ${kalanCacheSuresi(amatortelsizcilikYuklenmeZamani)}`;
+  }
+  if (elTr && taroleYuklenmeZamani) {
+    elTr.textContent = `4 saatlik cache — ${kalanCacheSuresi(taroleYuklenmeZamani)}`;
+  }
+}
 
 function kaynakDurumGuncelle(kaynak, durum, mesaj) {
   const durumEl = document.getElementById(`kaynak-${kaynak}-durum`);
@@ -74,6 +98,9 @@ async function basla() {
   tabloBasliklariAyarla();
   dinleyicileriKur();
 
+  // Update cache countdown every minute
+  setInterval(cacheBilgisiGuncelle, 60000);
+
   // Always load primary source
   await amatortelsizcilikYukle();
 
@@ -98,14 +125,18 @@ function kaynakAktifMi(kaynak) {
 async function amatortelsizcilikYukle() {
   kaynakDurumGuncelle("amatortelsizcilik", "yukleniyor", "Yukleniyor...");
   try {
-    const { data, fallback } = await roleleriGetir();
+    const { data, fallback, cacheTime } = await roleleriGetir();
     amatortelsizcilikRoleler = data;
     amatortelsizcilikYuklendi = true;
+    amatortelsizcilikYuklenmeZamani = cacheTime
+      ? new Date(cacheTime).getTime()
+      : Date.now();
 
     const msg = fallback
       ? `✓ ${data.length} role (fallback)`
       : `✓ ${data.length} role yuklendi`;
     kaynakDurumGuncelle("amatortelsizcilik", "basarili", msg);
+    cacheBilgisiGuncelle();
 
     if (fallback) {
       bannerGoster("warning", "API hatasi — fallback surum kullaniliyor.");
@@ -128,7 +159,11 @@ async function taroleYukle() {
     taroleYuklendi = taroleRoleler.length > 0;
 
     if (taroleYuklendi) {
+      taroleYuklenmeZamani = taroleRoleler._cacheTime
+        ? new Date(taroleRoleler._cacheTime).getTime()
+        : Date.now();
       kaynakDurumGuncelle("tarole", "basarili", `✓ ${taroleRoleler.length} role yuklendi`);
+      cacheBilgisiGuncelle();
       kaynaklariMergeEt();
       sehirListesiDoldur();
       taBolgesiDoldur();
