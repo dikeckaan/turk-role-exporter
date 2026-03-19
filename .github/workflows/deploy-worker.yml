@@ -2,7 +2,7 @@ name: Deploy Cloudflare Worker
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/cf-worker-full-site]
     paths:
       - 'worker/**'
       - 'docs/**'
