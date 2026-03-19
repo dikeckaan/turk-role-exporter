@@ -371,50 +371,6 @@ export function sehirdenFmKey(sehirAdi) {
 }
 
 // ---------------------------------------------------------------------------
-// Aviation (Air Band) — Turkish airport frequencies + international emergency
-// ---------------------------------------------------------------------------
-
-export const AIRBAND_FREKANSLARI = [
-  { frek: 121.500, ad: "ACIL GUARD", aciklama: "Uluslararasi Havacilik Acil Frekansi" },
-  { frek: 126.350, ad: "IST ATIS1", aciklama: "Istanbul Havalimanı ATIS" },
-  { frek: 128.850, ad: "IST ATIS2", aciklama: "Istanbul Havalimanı ATIS 2" },
-  { frek: 131.100, ad: "IST TWR", aciklama: "Istanbul Havalimanı Tower" },
-  { frek: 121.750, ad: "IST GND", aciklama: "Istanbul Havalimanı Ground" },
-  { frek: 128.550, ad: "SAW ATIS", aciklama: "Sabiha Gokcen ATIS" },
-  { frek: 118.100, ad: "SAW TWR", aciklama: "Sabiha Gokcen Tower" },
-  { frek: 121.800, ad: "SAW GND", aciklama: "Sabiha Gokcen Ground" },
-  { frek: 123.600, ad: "ESB ATIS", aciklama: "Esenboga ATIS" },
-  { frek: 118.100, ad: "ESB TWR", aciklama: "Esenboga Tower" },
-  { frek: 121.900, ad: "ESB GND", aciklama: "Esenboga Ground" },
-  { frek: 129.200, ad: "ADB ATIS", aciklama: "Adnan Menderes ATIS" },
-  { frek: 118.100, ad: "ADB TWR", aciklama: "Adnan Menderes Tower" },
-  { frek: 121.700, ad: "ADB GND", aciklama: "Adnan Menderes Ground" },
-  { frek: 128.200, ad: "AYT ATIS", aciklama: "Antalya ATIS" },
-  { frek: 118.100, ad: "AYT TWR", aciklama: "Antalya Tower" },
-];
-
-// ---------------------------------------------------------------------------
-// Maritime (Marine Band)
-// ---------------------------------------------------------------------------
-
-export const MARINE_FREKANSLARI = [
-  { frek: 156.800, ad: "CH16 ACIL", kanal: 16, aciklama: "Uluslararasi Deniz Acil/Cagri" },
-  { frek: 156.525, ad: "CH70 DSC", kanal: 70, aciklama: "Digital Selective Calling" },
-  { frek: 156.300, ad: "CH06 INTSH", kanal: 6, aciklama: "Gemiler Arasi Guvenlik" },
-  { frek: 156.650, ad: "CH13 BRIJ", kanal: 13, aciklama: "Kopru-Kopru Navigasyon" },
-  { frek: 156.400, ad: "CH08 WORK", kanal: 8, aciklama: "Sahil Guvenlik / Calisma" },
-  { frek: 156.475, ad: "CH69 SHIP", kanal: 69, aciklama: "Gemiler Arasi" },
-  { frek: 156.625, ad: "CH72 SHIP", kanal: 72, aciklama: "Gemiler Arasi" },
-  { frek: 156.875, ad: "CH77 SHIP", kanal: 77, aciklama: "Gemiler Arasi" },
-  { frek: 156.500, ad: "CH10 VTS", kanal: 10, aciklama: "Turk Bogazi VTS Sektoru" },
-  { frek: 156.550, ad: "CH11 VTS", kanal: 11, aciklama: "Turk Bogazi VTS / Kilavuz" },
-  { frek: 156.600, ad: "CH12 VTS", kanal: 12, aciklama: "Turk Bogazi VTS Sektoru" },
-  { frek: 156.700, ad: "CH14 VTS", kanal: 14, aciklama: "Turk Bogazi VTS Sektoru" },
-  { frek: 156.375, ad: "CH67 METEO", kanal: 67, aciklama: "Meteoroloji Yayini / SG Arama" },
-  { frek: 157.075, ad: "CH71 PILOT", kanal: 71, aciklama: "Istanbul Kilavuz" },
-];
-
-// ---------------------------------------------------------------------------
 // DMR Talk Groups
 // ---------------------------------------------------------------------------
 
@@ -489,8 +445,12 @@ export function ekKanalSayisi(opsiyonlar) {
   if (opsiyonlar.fmRadyoEkle && opsiyonlar.fmSehirler?.length > 0) {
     toplam += fmIstasyonlariGetir(opsiyonlar.fmSehirler).length;
   }
-  if (opsiyonlar.airbandEkle) toplam += AIRBAND_FREKANSLARI.length;
-  if (opsiyonlar.marineEkle) toplam += MARINE_FREKANSLARI.length;
+  if (opsiyonlar.airbandEkle && opsiyonlar.airbandData) {
+    toplam += opsiyonlar.airbandData.length;
+  }
+  if (opsiyonlar.marineEkle && opsiyonlar.marineData) {
+    toplam += opsiyonlar.marineData.length;
+  }
   if (opsiyonlar.simplexEkle) {
     toplam += DIGITAL_SIMPLEX.uhf.length + DIGITAL_SIMPLEX.vhf.length;
   }
@@ -507,11 +467,11 @@ export function kanalDagilimi(roleCount, opsiyonlar) {
     const n = fmIstasyonlariGetir(opsiyonlar.fmSehirler).length;
     items.push({ ad: "FM Radyo", sayi: n });
   }
-  if (opsiyonlar.airbandEkle) {
-    items.push({ ad: "Havacilik", sayi: AIRBAND_FREKANSLARI.length });
+  if (opsiyonlar.airbandEkle && opsiyonlar.airbandData) {
+    items.push({ ad: "Havacilik", sayi: opsiyonlar.airbandData.length });
   }
-  if (opsiyonlar.marineEkle) {
-    items.push({ ad: "Denizcilik", sayi: MARINE_FREKANSLARI.length });
+  if (opsiyonlar.marineEkle && opsiyonlar.marineData) {
+    items.push({ ad: "Denizcilik", sayi: opsiyonlar.marineData.length });
   }
   if (opsiyonlar.simplexEkle) {
     items.push({

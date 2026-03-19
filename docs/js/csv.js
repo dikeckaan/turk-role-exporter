@@ -8,8 +8,6 @@
 import { kanalAdiOlustur, txFrekansHesapla, isDijital } from "./utils.js";
 import {
   fmIstasyonlariGetir,
-  AIRBAND_FREKANSLARI,
-  MARINE_FREKANSLARI,
   DIGITAL_SIMPLEX,
 } from "./frekanslar.js";
 
@@ -145,7 +143,7 @@ function chirpCsvOlustur(roleler, profil, opsiyonlar) {
 
   // ── Airband channels ──
   if (opsiyonlar.airbandEkle) {
-    for (const ab of AIRBAND_FREKANSLARI) {
+    for (const ab of (opsiyonlar.airbandData || [])) {
       const col = boslukSatir(sutunSayisi);
       col[0] = String(location++);
       col[1] = ab.ad.slice(0, 10);
@@ -161,7 +159,7 @@ function chirpCsvOlustur(roleler, profil, opsiyonlar) {
 
   // ── Marine band channels ──
   if (opsiyonlar.marineEkle) {
-    for (const mb of MARINE_FREKANSLARI) {
+    for (const mb of (opsiyonlar.marineData || [])) {
       const col = boslukSatir(sutunSayisi);
       col[0] = String(location++);
       col[1] = mb.ad.slice(0, 10);

@@ -1,4 +1,4 @@
-import { roleleriGetir, taroleRoleleriGetir } from "./api.js";
+import { roleleriGetir, taroleRoleleriGetir, sifreDogrula, airbandGetir, marineGetir } from "./api.js";
 import { cihazListesi, cihazProfili } from "./cihazlar.js";
 import {
   filtrele,
@@ -27,6 +27,9 @@ let taroleRoleler = [];
 let birlesikRoleler = [];
 let filtrelenmisRoleler = [];
 let seciliCihaz = "quansheng-uv-k5-f4hwn";
+let authToken = sessionStorage.getItem("authToken") || null;
+let airbandData = null;
+let marineData = null;
 
 let amatortelsizcilikYuklendi = false;
 let taroleYuklendi = false;
@@ -120,6 +123,22 @@ async function basla() {
 
   // Always load primary source
   await amatortelsizcilikYukle();
+
+  // Restore auth session if token exists
+  if (authToken) {
+    try {
+      const [ab, mb] = await Promise.all([
+        airbandGetir(authToken),
+        marineGetir(authToken),
+      ]);
+      airbandData = ab;
+      marineData = mb;
+      korunanlariGuncelle(true);
+    } catch {
+      authToken = null;
+      sessionStorage.removeItem("authToken");
+    }
+  }
 
   // If ta-role toggle is on at start, load it too
   if (kaynakAktifMi("tarole")) {
@@ -580,7 +599,9 @@ function opsiyonTopla() {
     fmRadyoEkle: document.getElementById("opsiyon-fmradyo")?.checked ?? false,
     fmSehirler: fmSehirleriBelirle(),
     airbandEkle: document.getElementById("opsiyon-airband")?.checked ?? false,
+    airbandData: airbandData,
     marineEkle: document.getElementById("opsiyon-marine")?.checked ?? false,
+    marineData: marineData,
     simplexEkle: document.getElementById("opsiyon-simplex")?.checked ?? false,
     rxOnly: document.getElementById("opsiyon-rxonly")?.checked ?? true,
     gucSeviyesi: document.getElementById("guc-select")?.value || "High",
@@ -673,6 +694,75 @@ function istatistikleriGuncelle() {
   set("stat-filtrelenmis", filtrelenmisRoleler.length);
 }
 
+// ─── Password Modal ──────────────────────────────────────
+
+function sifreModaliGoster(hedefCheckboxId) {
+  const modal = document.getElementById("sifre-modal");
+  const input = document.getElementById("sifre-input");
+  const hata = document.getElementById("sifre-hata");
+  if (!modal) return;
+
+  hata.textContent = "";
+  input.value = "";
+  modal.style.display = "flex";
+  input.focus();
+  modal.dataset.hedef = hedefCheckboxId;
+}
+
+function sifreModaliKapat() {
+  const modal = document.getElementById("sifre-modal");
+  if (modal) modal.style.display = "none";
+}
+
+async function sifreOnayla() {
+  const modal = document.getElementById("sifre-modal");
+  const input = document.getElementById("sifre-input");
+  const hata = document.getElementById("sifre-hata");
+  const password = input?.value;
+
+  if (!password) { hata.textContent = "Sifre bos olamaz"; return; }
+
+  try {
+    authToken = await sifreDogrula(password);
+    sessionStorage.setItem("authToken", authToken);
+
+    // Fetch both protected datasets
+    const [ab, mb] = await Promise.all([
+      airbandGetir(authToken),
+      marineGetir(authToken),
+    ]);
+    airbandData = ab;
+    marineData = mb;
+
+    sifreModaliKapat();
+    korunanlariGuncelle(true);
+
+    // Enable the checkbox that triggered the modal
+    const hedef = modal.dataset.hedef;
+    if (hedef) {
+      const cb = document.getElementById(hedef);
+      if (cb) { cb.checked = true; }
+    }
+    document.dispatchEvent(new CustomEvent("filtre-degisti"));
+  } catch (err) {
+    hata.textContent = err.message || "Sifre hatasi";
+    authToken = null;
+    sessionStorage.removeItem("authToken");
+  }
+}
+
+function korunanlariGuncelle(unlocked) {
+  document.querySelectorAll(".protected-badge").forEach((el) => {
+    if (unlocked) {
+      el.textContent = "Acik";
+      el.classList.add("protected-unlocked");
+    } else {
+      el.textContent = "Sifre";
+      el.classList.remove("protected-unlocked");
+    }
+  });
+}
+
 // ─── Event Listeners ──────────────────────────────────────
 
 function dinleyicileriKur() {
@@ -681,11 +771,31 @@ function dinleyicileriKur() {
   [
     "filtre-aktif", "filtre-ruhsat", "filtre-puan",
     "opsiyon-pmr", "opsiyon-dpmr", "opsiyon-fmradyo",
-    "opsiyon-airband", "opsiyon-marine", "opsiyon-simplex", "opsiyon-rxonly",
+    "opsiyon-simplex", "opsiyon-rxonly",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     });
+  });
+
+  // Password-gated Air Band / Marine Band
+  ["opsiyon-airband", "opsiyon-marine"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", (e) => {
+      if (e.target.checked && !authToken) {
+        e.target.checked = false;
+        sifreModaliGoster(id);
+        return;
+      }
+      document.dispatchEvent(new CustomEvent("filtre-degisti"));
+    });
+  });
+
+  // Modal buttons
+  document.getElementById("sifre-modal-kapat")?.addEventListener("click", sifreModaliKapat);
+  document.getElementById("sifre-iptal")?.addEventListener("click", sifreModaliKapat);
+  document.getElementById("sifre-onayla")?.addEventListener("click", sifreOnayla);
+  document.getElementById("sifre-input")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") sifreOnayla();
   });
 
   // Data source toggles
