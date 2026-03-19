@@ -5,17 +5,23 @@
  * so it automatically adapts when new cities/pages are added.
  *
  * Endpoints:
- *   GET /api/roleler            → proxy amatortelsizcilik.com.tr (4hr cache)
- *   GET /api/tarole/roleler     → dynamic scrape VHF/UHF/DMR pages (4hr cache)
- *   GET /api/tarole/talkgruplar → scrape talk-gruplar page (4hr cache)
- *   GET /api/tarole/simplex     → scrape simplex page (4hr cache)
- *   GET /api/tarole/debug       → diagnostic info (no cache)
+ *   GET  /api/roleler            → proxy amatortelsizcilik.com.tr (4hr cache)
+ *   GET  /api/tarole/roleler     → dynamic scrape VHF/UHF/DMR pages (4hr cache)
+ *   GET  /api/tarole/talkgruplar → scrape talk-gruplar page (4hr cache)
+ *   GET  /api/tarole/simplex     → scrape simplex page (4hr cache)
+ *   GET  /api/tarole/debug       → diagnostic info (no cache)
+ *   POST /api/auth/verify        → password verification, returns token
+ *   GET  /api/protected/airband  → airband frequencies (token required)
+ *   GET  /api/protected/marine   → marine frequencies (token required)
+ *   *    /*                      → static site from Workers Sites KV
  */
+
+import { getAssetFromKV } from "@cloudflare/kv-asset-handler";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Expose-Headers": "X-Cache-Time, Age",
 };
 
@@ -35,8 +41,21 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    if (request.method !== "GET") {
-      return jsonResponse({ hata: "Sadece GET desteklenir" }, 405);
+    // Serve static assets for non-API paths
+    if (!url.pathname.startsWith("/api/")) {
+      try {
+        return await getAssetFromKV(
+          { request, waitUntil: (p) => ctx.waitUntil(p) },
+          {}
+        );
+      } catch {
+        return new Response("Not Found", { status: 404 });
+      }
+    }
+
+    // API routes — allow GET and POST
+    if (request.method !== "GET" && request.method !== "POST") {
+      return jsonResponse({ hata: "Sadece GET ve POST desteklenir" }, 405);
     }
 
     switch (url.pathname) {
@@ -50,11 +69,117 @@ export default {
         return handleTaroleSimplex(request, ctx);
       case "/api/tarole/debug":
         return handleTaroleDebug();
+      case "/api/auth/verify":
+        return handleAuthVerify(request, env);
+      case "/api/protected/airband":
+        return handleProtected(request, env, AIRBAND_FREKANSLARI);
+      case "/api/protected/marine":
+        return handleProtected(request, env, MARINE_FREKANSLARI);
       default:
         return jsonResponse({ hata: "Bulunamadi" }, 404);
     }
   },
 };
+
+// ─── Frequency data (protected) ──────────────────────────────────────────────
+
+const AIRBAND_FREKANSLARI = [
+  { frek: 121.500, ad: "ACIL GUARD", aciklama: "Uluslararasi Havacilik Acil Frekansi" },
+  { frek: 126.350, ad: "IST ATIS1", aciklama: "Istanbul Havalimanı ATIS" },
+  { frek: 128.850, ad: "IST ATIS2", aciklama: "Istanbul Havalimanı ATIS 2" },
+  { frek: 131.100, ad: "IST TWR", aciklama: "Istanbul Havalimanı Tower" },
+  { frek: 121.750, ad: "IST GND", aciklama: "Istanbul Havalimanı Ground" },
+  { frek: 128.550, ad: "SAW ATIS", aciklama: "Sabiha Gokcen ATIS" },
+  { frek: 118.100, ad: "SAW TWR", aciklama: "Sabiha Gokcen Tower" },
+  { frek: 121.800, ad: "SAW GND", aciklama: "Sabiha Gokcen Ground" },
+  { frek: 123.600, ad: "ESB ATIS", aciklama: "Esenboga ATIS" },
+  { frek: 118.100, ad: "ESB TWR", aciklama: "Esenboga Tower" },
+  { frek: 121.900, ad: "ESB GND", aciklama: "Esenboga Ground" },
+  { frek: 129.200, ad: "ADB ATIS", aciklama: "Adnan Menderes ATIS" },
+  { frek: 118.100, ad: "ADB TWR", aciklama: "Adnan Menderes Tower" },
+  { frek: 121.700, ad: "ADB GND", aciklama: "Adnan Menderes Ground" },
+  { frek: 128.200, ad: "AYT ATIS", aciklama: "Antalya ATIS" },
+  { frek: 118.100, ad: "AYT TWR", aciklama: "Antalya Tower" },
+];
+
+const MARINE_FREKANSLARI = [
+  { frek: 156.800, ad: "CH16 ACIL", kanal: 16, aciklama: "Uluslararasi Deniz Acil/Cagri" },
+  { frek: 156.525, ad: "CH70 DSC", kanal: 70, aciklama: "Digital Selective Calling" },
+  { frek: 156.300, ad: "CH06 INTSH", kanal: 6, aciklama: "Gemiler Arasi Guvenlik" },
+  { frek: 156.650, ad: "CH13 BRIJ", kanal: 13, aciklama: "Kopru-Kopru Navigasyon" },
+  { frek: 156.400, ad: "CH08 WORK", kanal: 8, aciklama: "Sahil Guvenlik / Calisma" },
+  { frek: 156.475, ad: "CH69 SHIP", kanal: 69, aciklama: "Gemiler Arasi" },
+  { frek: 156.625, ad: "CH72 SHIP", kanal: 72, aciklama: "Gemiler Arasi" },
+  { frek: 156.875, ad: "CH77 SHIP", kanal: 77, aciklama: "Gemiler Arasi" },
+  { frek: 156.500, ad: "CH10 VTS", kanal: 10, aciklama: "Turk Bogazi VTS Sektoru" },
+  { frek: 156.550, ad: "CH11 VTS", kanal: 11, aciklama: "Turk Bogazi VTS / Kilavuz" },
+  { frek: 156.600, ad: "CH12 VTS", kanal: 12, aciklama: "Turk Bogazi VTS Sektoru" },
+  { frek: 156.700, ad: "CH14 VTS", kanal: 14, aciklama: "Turk Bogazi VTS Sektoru" },
+  { frek: 156.375, ad: "CH67 METEO", kanal: 67, aciklama: "Meteoroloji Yayini / SG Arama" },
+  { frek: 157.075, ad: "CH71 PILOT", kanal: 71, aciklama: "Istanbul Kilavuz" },
+];
+
+// ─── Token generation & verification ─────────────────────────────────────────
+
+async function generateToken(password, secret) {
+  const ts = Math.floor(Date.now() / (3600 * 1000)); // hourly bucket
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC", key, encoder.encode(password + ":" + ts)
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+}
+
+async function verifyToken(token, password, secret) {
+  // Check current hour and previous hour (for tokens near boundary)
+  const current = await generateToken(password, secret);
+  if (token === current) return true;
+  const ts = Math.floor(Date.now() / (3600 * 1000)) - 1;
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC", key, encoder.encode(password + ":" + ts)
+  );
+  const prev = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  return token === prev;
+}
+
+// ─── Auth & protected handlers ───────────────────────────────────────────────
+
+async function handleAuthVerify(request, env) {
+  if (request.method !== "POST") {
+    return jsonResponse({ hata: "POST gerekli" }, 405);
+  }
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ hata: "Gecersiz istek" }, 400);
+  }
+  const password = body?.password;
+  const secret = env.PROTECTED_PASSWORD;
+  if (!password || !secret || password !== secret) {
+    return jsonResponse({ hata: "Yanlis sifre" }, 401);
+  }
+  const token = await generateToken(password, secret);
+  return jsonResponse({ token });
+}
+
+async function handleProtected(request, env, data) {
+  const authHeader = request.headers.get("Authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
+  if (!token || !(await verifyToken(token, env.PROTECTED_PASSWORD, env.PROTECTED_PASSWORD))) {
+    return jsonResponse({ hata: "Yetkilendirme gerekli" }, 401);
+  }
+  return jsonResponse(data);
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
