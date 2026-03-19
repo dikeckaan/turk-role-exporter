@@ -5,8 +5,7 @@ compatibility_date = "2024-01-01"
 [site]
 bucket = "./docs"
 
-# Password should be set as a secret in production:
-#   wrangler secret put PROTECTED_PASSWORD
-# The [vars] below is for local development only.
-[vars]
-PROTECTED_PASSWORD = "changeme"
+# PROTECTED_PASSWORD is set via:
+#   Production: wrangler secret put PROTECTED_PASSWORD
+#   CI/CD: GitHub secret PROTECTED_PASSWORD (passed in deploy workflow)
+#   Local dev: create .dev.vars file with PROTECTED_PASSWORD=yourpassword
