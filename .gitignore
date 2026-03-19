@@ -5,3 +5,4 @@ varsayilan.csv
 .claude/
 .superpowers/
 .DS_Store
+node_modules/
