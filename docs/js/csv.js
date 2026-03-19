@@ -62,7 +62,7 @@ function chirpCsvOlustur(roleler, profil, opsiyonlar) {
 
     const rxStr = String(role.frekans || "").replace(",", ".");
     const rx = parseFloat(rxStr);
-    const txStr = txFrekansHesapla(role, profil.shiftHesaplama);
+    const txStr = role.txFrekansOverride || txFrekansHesapla(role, profil.shiftHesaplama);
     const tx = parseFloat(txStr);
 
     col[0] = String(location++);
@@ -246,7 +246,7 @@ function cpsCsvOlustur(roleler, profil, opsiyonlar) {
     col[0] = isDijital(role) ? "2" : "1";
     col[1] = role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati);
     col[2] = String(role.frekans || "").replace(",", ".");
-    col[3] = txFrekansHesapla(role, profil.shiftHesaplama);
+    col[3] = role.txFrekansOverride || txFrekansHesapla(role, profil.shiftHesaplama);
 
     col[4] = d.bandWidth;
     col[6] = d.squelch;

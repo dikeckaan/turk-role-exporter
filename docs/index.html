@@ -298,6 +298,20 @@
       </div>
     </div>
 
+    <!-- Indir / Import -->
+    <div class="section">
+      <div class="download-section">
+        <div class="channel-count">
+          Toplam Kanal: <span class="count-value" id="kanal-sayisi">0</span>
+        </div>
+        <div id="max-kanal-uyari" class="max-kanal-uyari"></div>
+        <button type="button" id="csv-indir-btn" class="btn-primary">CSV Indir</button>
+        <label class="btn-secondary csv-import-label" for="csv-import-input">CSV Yukle</label>
+        <input type="file" id="csv-import-input" accept=".csv" style="display:none;">
+      </div>
+      <div id="import-bilgi" class="import-bilgi" style="display:none;"></div>
+    </div>
+
     <!-- Onizleme Tablosu -->
     <div class="section">
       <div class="section-title">Onizleme
@@ -326,17 +340,6 @@
           </thead>
           <tbody></tbody>
         </table>
-      </div>
-    </div>
-
-    <!-- Indir -->
-    <div class="section">
-      <div class="download-section">
-        <div class="channel-count">
-          Toplam Kanal: <span class="count-value" id="kanal-sayisi">0</span>
-        </div>
-        <div id="max-kanal-uyari" class="max-kanal-uyari"></div>
-        <button type="button" id="csv-indir-btn" class="btn-primary">CSV Indir</button>
       </div>
     </div>
   </div>

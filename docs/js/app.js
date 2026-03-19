@@ -703,25 +703,48 @@ function uygula() {
 
   const bosKanallar = bosKanalListesiOlustur(opsiyonlar);
 
-  const tabloCallbacks = {
-    onSil: (index) => {
-      duzenlenmisRoleler.splice(index, 1);
-      tabloYenile();
-    },
-    onAdDegistir: (index, yeniAd) => {
-      if (duzenlenmisRoleler[index]) {
-        duzenlenmisRoleler[index] = Object.assign({}, duzenlenmisRoleler[index], {
-          kanalAdiOverride: yeniAd,
-        });
-      }
-    },
-  };
-
-  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacks, bosKanallar);
+  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacksOlustur(), bosKanallar);
   pinleriGuncelle(filtrelenmisRoleler);
   istatistikleriGuncelle();
 
   kanalSayisiGuncelle(profil, opsiyonlar);
+}
+
+function tabloCallbacksOlustur() {
+  return {
+    onSil: (index) => {
+      duzenlenmisRoleler.splice(index, 1);
+      tabloYenile();
+    },
+    onHucreDegistir: (index, col, yeniDeger) => {
+      if (!duzenlenmisRoleler[index]) return;
+      const update = {};
+
+      if (col.key === "kanalAdi") {
+        update.kanalAdiOverride = yeniDeger;
+      } else if (col.key === "frekans") {
+        update.frekans = yeniDeger.replace(",", ".");
+      } else if (col.key === "txFrekans") {
+        update.txFrekansOverride = yeniDeger.replace(",", ".");
+      } else if (col.key === "bant") {
+        update.bant = yeniDeger.toUpperCase();
+      } else if (col.key === "digital") {
+        update.modOverride = yeniDeger;
+      } else if (col.key === "guc") {
+        update.gucOverride = yeniDeger;
+      } else if (col.key === "yukseklik") {
+        update.yukseklikOverride = yeniDeger;
+      } else if (col.key === "sehir") {
+        update.sehir = yeniDeger;
+      } else if (col.key === "ilce") {
+        update.ilce = yeniDeger;
+      } else if (col.key === "konum") {
+        update.konum = yeniDeger;
+      }
+
+      duzenlenmisRoleler[index] = Object.assign({}, duzenlenmisRoleler[index], update);
+    },
+  };
 }
 
 function tabloYenile() {
@@ -730,21 +753,7 @@ function tabloYenile() {
   const opsiyonlar = opsiyonTopla();
   const bosKanallar = bosKanalListesiOlustur(opsiyonlar);
 
-  const tabloCallbacks = {
-    onSil: (index) => {
-      duzenlenmisRoleler.splice(index, 1);
-      tabloYenile();
-    },
-    onAdDegistir: (index, yeniAd) => {
-      if (duzenlenmisRoleler[index]) {
-        duzenlenmisRoleler[index] = Object.assign({}, duzenlenmisRoleler[index], {
-          kanalAdiOverride: yeniAd,
-        });
-      }
-    },
-  };
-
-  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacks, bosKanallar);
+  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacksOlustur(), bosKanallar);
   kanalSayisiGuncelle(profil, opsiyonlar);
 }
 
@@ -1015,6 +1024,168 @@ function dinleyicileriKur() {
     if (!dosyaAdi.endsWith(".csv")) dosyaAdi += ".csv";
     csvIndir(csv, dosyaAdi);
   });
+
+  // CSV Import
+  document.getElementById("csv-import-input")?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    csvImport(file);
+    e.target.value = ""; // reset so same file can be re-imported
+  });
+}
+
+// ─── CSV Import ───────────────────────────────────────────
+
+function csvParse(text) {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length < 2) return [];
+
+  const parseRow = (line) => {
+    const fields = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (i + 1 < line.length && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          current += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ",") {
+          fields.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+    }
+    fields.push(current.trim());
+    return fields;
+  };
+
+  const header = parseRow(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseRow(lines[i]);
+    if (vals.length < 2) continue;
+    const obj = {};
+    for (let j = 0; j < header.length; j++) {
+      obj[header[j]] = vals[j] || "";
+    }
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function csvImport(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const rows = csvParse(text);
+    if (rows.length === 0) {
+      importBilgiGoster("error", "CSV dosyasi bos veya okunamadi.");
+      return;
+    }
+
+    // Detect format: CHIRP or CPS
+    const headers = Object.keys(rows[0]);
+    const isChirp = headers.includes("Location") && headers.includes("Name") && headers.includes("Frequency");
+    const isCps = headers.includes("Channel Name") && headers.includes("RX Frequency(MHz)");
+
+    const importedRoles = [];
+
+    if (isChirp) {
+      for (const row of rows) {
+        const frek = row["Frequency"] || "";
+        const rx = parseFloat(frek);
+        if (isNaN(rx) || rx === 0) continue;
+        importedRoles.push({
+          kanalAdiOverride: row["Name"] || "",
+          frekans: frek,
+          bant: rx < 300 ? "VHF" : "UHF",
+          durum: true,
+          sehir: "",
+          ilce: "",
+          konum: row["Comment"] || "",
+          digital: 0,
+          modOverride: row["Mode"] === "FM" ? "Analog" : row["Mode"] || "Analog",
+          gucOverride: row["Power"] || "",
+        });
+      }
+      importBilgiGoster("success", `CHIRP CSV: ${importedRoles.length} kanal yuklendi.`);
+    } else if (isCps) {
+      for (const row of rows) {
+        const frek = row["RX Frequency(MHz)"] || "";
+        const rx = parseFloat(frek);
+        if (isNaN(rx) || rx === 0) continue;
+        const mode = row["Channel Mode"];
+        importedRoles.push({
+          kanalAdiOverride: row["Channel Name"] || "",
+          frekans: frek,
+          txFrekansOverride: row["TX Frequency(MHz)"] || frek,
+          bant: rx < 300 ? "VHF" : "UHF",
+          durum: true,
+          sehir: "",
+          ilce: "",
+          konum: "",
+          digital: mode === "2" ? 1 : 0,
+          modOverride: mode === "2" ? "Dijital" : "Analog",
+        });
+      }
+      importBilgiGoster("success", `CPS CSV: ${importedRoles.length} kanal yuklendi.`);
+    } else {
+      // Generic CSV — try first columns as name, rx freq
+      const keys = headers;
+      for (const row of rows) {
+        const vals = Object.values(row);
+        // Try to find a frequency-like value
+        let frek = "";
+        let ad = vals[0] || "";
+        for (const v of vals) {
+          const n = parseFloat(v);
+          if (n > 100 && n < 600) { frek = v; break; }
+        }
+        if (!frek) continue;
+        const rx = parseFloat(frek);
+        importedRoles.push({
+          kanalAdiOverride: ad,
+          frekans: frek,
+          bant: rx < 300 ? "VHF" : "UHF",
+          durum: true,
+          sehir: "",
+          ilce: "",
+          konum: "",
+          digital: 0,
+        });
+      }
+      importBilgiGoster("success", `CSV: ${importedRoles.length} kanal yuklendi (genel format).`);
+    }
+
+    if (importedRoles.length > 0) {
+      // Append imported to edited list
+      duzenlenmisRoleler = [...duzenlenmisRoleler, ...importedRoles];
+      tabloYenile();
+    }
+  };
+  reader.readAsText(file);
+}
+
+function importBilgiGoster(tip, mesaj) {
+  const el = document.getElementById("import-bilgi");
+  if (!el) return;
+  el.textContent = mesaj;
+  el.className = "import-bilgi import-" + tip;
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 5000);
 }
 
 // ─── Banner ───────────────────────────────────────────────

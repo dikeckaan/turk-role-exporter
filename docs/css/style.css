@@ -978,3 +978,27 @@ input[type="number"]:focus {
   display: none;
 }
 
+/* ── CSV Import ───────────────────────────────────────────── */
+.csv-import-label {
+  cursor: pointer;
+}
+
+.import-bilgi {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.import-success {
+  background: rgba(78, 204, 163, 0.1);
+  border: 1px solid rgba(78, 204, 163, 0.3);
+  color: var(--success);
+}
+
+.import-error {
+  background: rgba(233, 69, 96, 0.1);
+  border: 1px solid rgba(233, 69, 96, 0.3);
+  color: var(--error);
+}
+
