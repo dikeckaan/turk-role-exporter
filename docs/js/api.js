@@ -104,3 +104,36 @@ export async function taroleSimplex() {
     return null;
   }
 }
+
+/** Verifies password and returns auth token */
+export async function sifreDogrula(password) {
+  const response = await fetch(`${WORKER_BASE}/api/auth/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.hata || "Dogrulama hatasi");
+  }
+  const { token } = await response.json();
+  return token;
+}
+
+/** Fetches protected Air Band data with auth token */
+export async function airbandGetir(token) {
+  const response = await fetch(`${WORKER_BASE}/api/protected/airband`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Airband verisi alinamadi");
+  return response.json();
+}
+
+/** Fetches protected Marine Band data with auth token */
+export async function marineGetir(token) {
+  const response = await fetch(`${WORKER_BASE}/api/protected/marine`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Marine verisi alinamadi");
+  return response.json();
+}
