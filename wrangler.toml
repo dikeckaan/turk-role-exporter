@@ -3,8 +3,7 @@ main = "worker/index.js"
 compatibility_date = "2024-01-01"
 
 [site]
-bucket = "."
-exclude = ["node_modules", "worker", "docs", ".git", "package.json", "package-lock.json", "wrangler.toml", ".gitignore"]
+bucket = "./docs"
 
 # Password should be set as a secret in production:
 #   wrangler secret put PROTECTED_PASSWORD
