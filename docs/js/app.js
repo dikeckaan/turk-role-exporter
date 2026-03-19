@@ -6,8 +6,8 @@ import {
   benzersizIlceler,
   benzersizTaBolgeleri,
 } from "./filtreler.js";
-import { csvOlustur, csvIndir } from "./csv.js";
-import { tabloGuncelle, tabloBasliklariAyarla } from "./tablo.js";
+import { csvSatirlarUret, csvStringOlustur, csvIndir } from "./csv.js";
+import { csvTabloGuncelle } from "./tablo.js";
 import {
   haritaBaslat,
   pinleriGuncelle,
@@ -15,8 +15,6 @@ import {
   sehirSeciminiSenkronla,
 } from "./harita.js";
 import {
-  ekKanalSayisi,
-  kanalDagilimi,
   sehirdenFmKey,
 } from "./frekanslar.js";
 import { normalizeTurkce, isDijital } from "./utils.js";
@@ -32,6 +30,8 @@ let airbandData = null;
 let marineData = null;
 
 let duzenlenmisRoleler = [];
+let csvBasliklar = [];
+let csvSatirlar = [];
 
 let amatortelsizcilikYuklendi = false;
 let taroleYuklendi = false;
@@ -109,7 +109,6 @@ function kaynakDurumGuncelle(kaynak, durum, mesaj) {
 async function basla() {
   cihazSeciciDoldur();
   await haritaBaslat();
-  tabloBasliklariAyarla();
   dinleyicileriKur();
 
   // Update cache countdown every second (pause when tab hidden)
@@ -623,24 +622,6 @@ function opsiyonTopla() {
 
 // ─── Main Apply ───────────────────────────────────────────
 
-function bosKanalListesiOlustur(opsiyonlar) {
-  const liste = [];
-  if (opsiyonlar.bosAnalogAdet > 0) {
-    const frek = parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5;
-    const bant = frek < 300 ? "VHF" : "UHF";
-    for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
-      liste.push({ ad: `BOS A${i + 1}`, frekans: frek.toFixed(5), bant, mod: "Analog" });
-    }
-  }
-  if (opsiyonlar.bosDijitalAdet > 0) {
-    const frek = parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5;
-    const bant = frek < 300 ? "VHF" : "UHF";
-    for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
-      liste.push({ ad: `BOS D${i + 1}`, frekans: frek.toFixed(5), bant, mod: "Dijital" });
-    }
-  }
-  return liste;
-}
 
 function formatUyarisiKontrol(profil, opsiyonlar) {
   const uyarilar = [];
@@ -701,65 +682,60 @@ function uygula() {
   fmBilgiGuncelle();
   formatUyarisiKontrol(profil, opsiyonlar);
 
-  const bosKanallar = bosKanalListesiOlustur(opsiyonlar);
+  // Generate CSV rows for preview
+  const csvData = csvSatirlarUret(duzenlenmisRoleler, profil, opsiyonlar);
+  csvBasliklar = csvData.basliklar;
+  csvSatirlar = csvData.satirlar;
 
-  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacksOlustur(), bosKanallar);
+  csvTabloGuncelle(csvBasliklar, csvSatirlar, csvTabloCallbacks());
   pinleriGuncelle(filtrelenmisRoleler);
   istatistikleriGuncelle();
 
   kanalSayisiGuncelle(profil, opsiyonlar);
 }
 
-function tabloCallbacksOlustur() {
+function csvTabloCallbacks() {
   return {
     onSil: (index) => {
-      duzenlenmisRoleler.splice(index, 1);
-      tabloYenile();
-    },
-    onHucreDegistir: (index, col, yeniDeger) => {
-      if (!duzenlenmisRoleler[index]) return;
-      const update = {};
-
-      if (col.key === "kanalAdi") {
-        update.kanalAdiOverride = yeniDeger;
-      } else if (col.key === "frekans") {
-        update.frekans = yeniDeger.replace(",", ".");
-      } else if (col.key === "txFrekans") {
-        update.txFrekansOverride = yeniDeger.replace(",", ".");
-      } else if (col.key === "bant") {
-        update.bant = yeniDeger.toUpperCase();
-      } else if (col.key === "digital") {
-        update.modOverride = yeniDeger;
-      } else if (col.key === "guc") {
-        update.gucOverride = yeniDeger;
-      } else if (col.key === "yukseklik") {
-        update.yukseklikOverride = yeniDeger;
-      } else if (col.key === "sehir") {
-        update.sehir = yeniDeger;
-      } else if (col.key === "ilce") {
-        update.ilce = yeniDeger;
-      } else if (col.key === "konum") {
-        update.konum = yeniDeger;
+      csvSatirlar.splice(index, 1);
+      // Re-number Location/row IDs
+      for (let i = 0; i < csvSatirlar.length; i++) {
+        csvSatirlar[i][0] = String(i + 1);
       }
-
-      duzenlenmisRoleler[index] = Object.assign({}, duzenlenmisRoleler[index], update);
+      csvTabloYenile();
+    },
+    onHucreDegistir: (rowIndex, colIndex, value) => {
+      if (csvSatirlar[rowIndex]) {
+        csvSatirlar[rowIndex][colIndex] = value;
+      }
     },
   };
 }
 
-function tabloYenile() {
+function csvTabloYenile() {
+  csvTabloGuncelle(csvBasliklar, csvSatirlar, csvTabloCallbacks());
   const profil = cihazProfili(seciliCihaz);
-  if (!profil) return;
-  const opsiyonlar = opsiyonTopla();
-  const bosKanallar = bosKanalListesiOlustur(opsiyonlar);
+  if (profil) {
+    const kanalSayisiEl = document.getElementById("kanal-sayisi");
+    if (kanalSayisiEl) kanalSayisiEl.textContent = csvSatirlar.length;
 
-  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacksOlustur(), bosKanallar);
-  kanalSayisiGuncelle(profil, opsiyonlar);
+    const maxUyari = document.getElementById("max-kanal-uyari");
+    const indirBtn = document.getElementById("csv-indir-btn");
+    if (csvSatirlar.length > profil.maxKanal) {
+      if (indirBtn) { indirBtn.classList.add("disabled"); indirBtn.disabled = true; }
+      if (maxUyari) {
+        maxUyari.textContent = `${profil.ad} max ${profil.maxKanal} kanal. Toplam ${csvSatirlar.length} — ${csvSatirlar.length - profil.maxKanal} fazla!`;
+        maxUyari.style.display = "block";
+      }
+    } else {
+      if (indirBtn) { indirBtn.classList.remove("disabled"); indirBtn.disabled = false; }
+      if (maxUyari) { maxUyari.textContent = ""; maxUyari.style.display = "none"; }
+    }
+  }
 }
 
 function kanalSayisiGuncelle(profil, opsiyonlar) {
-  const ekSayisi = ekKanalSayisi(opsiyonlar);
-  const toplamKanal = duzenlenmisRoleler.length + ekSayisi;
+  const toplamKanal = csvSatirlar.length;
 
   const indirBtn = document.getElementById("csv-indir-btn");
   const kanalSayisiEl = document.getElementById("kanal-sayisi");
@@ -771,11 +747,9 @@ function kanalSayisiGuncelle(profil, opsiyonlar) {
     if (indirBtn) { indirBtn.classList.add("disabled"); indirBtn.disabled = true; }
     if (maxUyari) {
       const fazla = toplamKanal - profil.maxKanal;
-      const dagilim = kanalDagilimi(duzenlenmisRoleler.length, opsiyonlar);
       maxUyari.textContent = "";
 
       const baslik = document.createElement("div");
-      baslik.innerHTML = "";
       const b1 = document.createElement("strong");
       b1.textContent = profil.ad;
       baslik.appendChild(b1);
@@ -791,41 +765,8 @@ function kanalSayisiGuncelle(profil, opsiyonlar) {
       const b4 = document.createElement("strong");
       b4.textContent = fazla;
       baslik.appendChild(b4);
-      baslik.appendChild(document.createTextNode(" fazla!"));
+      baslik.appendChild(document.createTextNode(" fazla! Filtrelerden kanal sayisini azaltin."));
       maxUyari.appendChild(baslik);
-
-      const dagDiv = document.createElement("div");
-      dagDiv.className = "kanal-dagilimi";
-      const dagBaslik = document.createElement("div");
-      dagBaslik.className = "kanal-dagilimi-baslik";
-      dagBaslik.textContent = "Kanal Dagilimi:";
-      dagDiv.appendChild(dagBaslik);
-
-      for (const item of dagilim) {
-        const satir = document.createElement("div");
-        satir.className = "kanal-dagilimi-satir";
-        const adSpan = document.createElement("span");
-        adSpan.className = "kanal-ad";
-        adSpan.textContent = item.ad + (item.zorunlu ? "" : " \u2715");
-        const sayiSpan = document.createElement("span");
-        sayiSpan.className = "kanal-sayi";
-        sayiSpan.textContent = item.sayi;
-        satir.appendChild(adSpan);
-        satir.appendChild(sayiSpan);
-        dagDiv.appendChild(satir);
-      }
-
-      const toplamDiv = document.createElement("div");
-      toplamDiv.className = "kanal-dagilimi-toplam";
-      const toplamLabel = document.createElement("span");
-      toplamLabel.textContent = "Toplam";
-      const toplamValue = document.createElement("span");
-      toplamValue.textContent = `${toplamKanal} / ${profil.maxKanal}`;
-      toplamDiv.appendChild(toplamLabel);
-      toplamDiv.appendChild(toplamValue);
-      dagDiv.appendChild(toplamDiv);
-
-      maxUyari.appendChild(dagDiv);
       maxUyari.style.display = "block";
     }
   } else {
@@ -991,7 +932,7 @@ function dinleyicileriKur() {
   });
 
   document.getElementById("tablo-arama")?.addEventListener("input", () => {
-    tabloYenile();
+    csvTabloYenile();
   });
 
   document.getElementById("sehir-arama")?.addEventListener("input", (e) => {
@@ -1016,10 +957,9 @@ function dinleyicileriKur() {
   });
 
   document.getElementById("csv-indir-btn")?.addEventListener("click", () => {
-    const profil = cihazProfili(seciliCihaz);
-    if (!profil) return;
+    if (csvBasliklar.length === 0 || csvSatirlar.length === 0) return;
     const opsiyonlar = opsiyonTopla();
-    const csv = csvOlustur(duzenlenmisRoleler, profil, opsiyonlar);
+    const csv = csvStringOlustur(csvBasliklar, csvSatirlar);
     let dosyaAdi = opsiyonlar.dosyaAdi;
     if (!dosyaAdi.endsWith(".csv")) dosyaAdi += ".csv";
     csvIndir(csv, dosyaAdi);
@@ -1036,145 +976,96 @@ function dinleyicileriKur() {
 
 // ─── CSV Import ───────────────────────────────────────────
 
-function csvParse(text) {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return [];
-
-  const parseRow = (line) => {
-    const fields = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQuotes) {
-        if (ch === '"') {
-          if (i + 1 < line.length && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = false;
-          }
-        } else {
-          current += ch;
-        }
-      } else {
-        if (ch === '"') {
-          inQuotes = true;
-        } else if (ch === ",") {
-          fields.push(current.trim());
-          current = "";
-        } else {
-          current += ch;
-        }
-      }
-    }
-    fields.push(current.trim());
-    return fields;
-  };
-
-  const header = parseRow(lines[0]);
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const vals = parseRow(lines[i]);
-    if (vals.length < 2) continue;
-    const obj = {};
-    for (let j = 0; j < header.length; j++) {
-      obj[header[j]] = vals[j] || "";
-    }
-    rows.push(obj);
-  }
-  return rows;
-}
-
 function csvImport(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const text = e.target.result;
-    const rows = csvParse(text);
-    if (rows.length === 0) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) {
       importBilgiGoster("error", "CSV dosyasi bos veya okunamadi.");
       return;
     }
 
-    // Detect format: CHIRP or CPS
-    const headers = Object.keys(rows[0]);
-    const isChirp = headers.includes("Location") && headers.includes("Name") && headers.includes("Frequency");
-    const isCps = headers.includes("Channel Name") && headers.includes("RX Frequency(MHz)");
-
-    const importedRoles = [];
-
-    if (isChirp) {
-      for (const row of rows) {
-        const frek = row["Frequency"] || "";
-        const rx = parseFloat(frek);
-        if (isNaN(rx) || rx === 0) continue;
-        importedRoles.push({
-          kanalAdiOverride: row["Name"] || "",
-          frekans: frek,
-          bant: rx < 300 ? "VHF" : "UHF",
-          durum: true,
-          sehir: "",
-          ilce: "",
-          konum: row["Comment"] || "",
-          digital: 0,
-          modOverride: row["Mode"] === "FM" ? "Analog" : row["Mode"] || "Analog",
-          gucOverride: row["Power"] || "",
-        });
-      }
-      importBilgiGoster("success", `CHIRP CSV: ${importedRoles.length} kanal yuklendi.`);
-    } else if (isCps) {
-      for (const row of rows) {
-        const frek = row["RX Frequency(MHz)"] || "";
-        const rx = parseFloat(frek);
-        if (isNaN(rx) || rx === 0) continue;
-        const mode = row["Channel Mode"];
-        importedRoles.push({
-          kanalAdiOverride: row["Channel Name"] || "",
-          frekans: frek,
-          txFrekansOverride: row["TX Frequency(MHz)"] || frek,
-          bant: rx < 300 ? "VHF" : "UHF",
-          durum: true,
-          sehir: "",
-          ilce: "",
-          konum: "",
-          digital: mode === "2" ? 1 : 0,
-          modOverride: mode === "2" ? "Dijital" : "Analog",
-        });
-      }
-      importBilgiGoster("success", `CPS CSV: ${importedRoles.length} kanal yuklendi.`);
-    } else {
-      // Generic CSV — try first columns as name, rx freq
-      const keys = headers;
-      for (const row of rows) {
-        const vals = Object.values(row);
-        // Try to find a frequency-like value
-        let frek = "";
-        let ad = vals[0] || "";
-        for (const v of vals) {
-          const n = parseFloat(v);
-          if (n > 100 && n < 600) { frek = v; break; }
+    // Parse header and rows as raw arrays
+    const parseRow = (line) => {
+      const fields = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+            else inQuotes = false;
+          } else current += ch;
+        } else {
+          if (ch === '"') inQuotes = true;
+          else if (ch === ",") { fields.push(current); current = ""; }
+          else current += ch;
         }
-        if (!frek) continue;
-        const rx = parseFloat(frek);
-        importedRoles.push({
-          kanalAdiOverride: ad,
-          frekans: frek,
-          bant: rx < 300 ? "VHF" : "UHF",
-          durum: true,
-          sehir: "",
-          ilce: "",
-          konum: "",
-          digital: 0,
-        });
       }
-      importBilgiGoster("success", `CSV: ${importedRoles.length} kanal yuklendi (genel format).`);
+      fields.push(current);
+      return fields;
+    };
+
+    const importHeader = parseRow(lines[0]);
+    const importRows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = parseRow(lines[i]);
+      if (vals.length >= 2) importRows.push(vals);
     }
 
-    if (importedRoles.length > 0) {
-      // Append imported to edited list
-      duzenlenmisRoleler = [...duzenlenmisRoleler, ...importedRoles];
-      tabloYenile();
+    if (importRows.length === 0) {
+      importBilgiGoster("error", "CSV'de veri satiri bulunamadi.");
+      return;
     }
+
+    // Check if headers match current device format
+    const profil = cihazProfili(seciliCihaz);
+    const currentHeaders = profil?.csvSutunlari || [];
+    const headersMatch = currentHeaders.length === importHeader.length &&
+      currentHeaders.every((h, i) => h === importHeader[i]);
+
+    if (headersMatch) {
+      // Same format — append rows directly, fix Location numbers
+      const startLoc = csvSatirlar.length + 1;
+      for (let i = 0; i < importRows.length; i++) {
+        const row = [...importRows[i]];
+        // Pad or trim to match column count
+        while (row.length < currentHeaders.length) row.push("");
+        row[0] = String(startLoc + i);
+        csvSatirlar.push(row);
+      }
+      importBilgiGoster("success", `${importRows.length} kanal eklendi (ayni format).`);
+    } else {
+      // Different format — map by column name
+      const colMap = new Map();
+      for (let i = 0; i < importHeader.length; i++) {
+        colMap.set(importHeader[i], i);
+      }
+
+      const startLoc = csvSatirlar.length + 1;
+      let added = 0;
+      for (const importRow of importRows) {
+        const newRow = Array(currentHeaders.length).fill("");
+        for (let ci = 0; ci < currentHeaders.length; ci++) {
+          const srcIdx = colMap.get(currentHeaders[ci]);
+          if (srcIdx !== undefined && srcIdx < importRow.length) {
+            newRow[ci] = importRow[srcIdx];
+          }
+        }
+        newRow[0] = String(startLoc + added);
+        // Skip if no meaningful data (no frequency-like value)
+        const hasFreq = newRow.some((v) => { const n = parseFloat(v); return n > 100 && n < 600; });
+        if (hasFreq || newRow[1]) {
+          csvSatirlar.push(newRow);
+          added++;
+        }
+      }
+      importBilgiGoster("success", `${added} kanal eklendi (farkli format — sutunlar eslesti).`);
+    }
+
+    csvTabloYenile();
   };
   reader.readAsText(file);
 }

@@ -1,8 +1,7 @@
 /**
  * csv.js
  * Generates CPS/CHIRP-compatible CSV files for amateur radio devices.
- * Supports: repeater channels, PMR, dPMR, FM broadcast, airband, marine,
- *           DMR talk groups, and digital simplex channels.
+ * Exports raw row arrays for preview/editing, then joins for download.
  */
 
 import { kanalAdiOlustur, txFrekansHesapla, isDijital } from "./utils.js";
@@ -11,10 +10,6 @@ import {
   DIGITAL_SIMPLEX,
 } from "./frekanslar.js";
 
-/**
- * Escapes a CSV field value by wrapping in double-quotes when necessary.
- * Internal double-quotes are doubled per RFC 4180.
- */
 function csvEscape(val) {
   const str = String(val);
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
@@ -23,12 +18,9 @@ function csvEscape(val) {
   return str;
 }
 
-/** Builds an array pre-filled with empty strings. */
-function boslukSatir(sutunSayisi) {
-  return Array(sutunSayisi).fill("");
-}
+function boslukSatir(n) { return Array(n).fill(""); }
 
-// ─── PMR Frequency Lists ─────────────────────────────────────────────────────
+// ─── PMR / dPMR ──────────────────────────────────────────────────────────────
 
 const PMR_FREKANSLAR = [
   446.00625, 446.01875, 446.03125, 446.04375,
@@ -44,305 +36,238 @@ const DPMR_FREKANSLAR = [
   446.178125, 446.184375, 446.190625, 446.196875,
 ];
 
-// ─── CHIRP CSV Generator ─────────────────────────────────────────────────────
+// ─── CHIRP row builder ──────────────────────────────────────────────────────
 
-function chirpCsvOlustur(roleler, profil, opsiyonlar) {
-  const satirlar = [];
-  const sutunSayisi = profil.csvSutunlari.length;
+function chirpSatirlarUret(roleler, profil, opsiyonlar) {
+  const rows = [];
+  const n = profil.csvSutunlari.length;
   const d = profil.varsayilanDegerler;
-  const gucDegeri = profil.gucSeviyeleri[opsiyonlar.gucSeviyesi] || "5.0W";
+  const guc = profil.gucSeviyeleri[opsiyonlar.gucSeviyesi] || "5.0W";
+  let loc = 1;
 
-  satirlar.push(profil.csvSutunlari.join(","));
-
-  let location = 1;
-
-  // ── Repeater channels ──
   for (const role of roleler) {
-    const col = boslukSatir(sutunSayisi);
-
+    const col = boslukSatir(n);
     const rxStr = String(role.frekans || "").replace(",", ".");
     const rx = parseFloat(rxStr);
     const txStr = role.txFrekansOverride || txFrekansHesapla(role, profil.shiftHesaplama);
     const tx = parseFloat(txStr);
 
-    col[0] = String(location++);
+    col[0] = String(loc++);
     col[1] = (role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati)).slice(0, 10);
     col[2] = rx.toFixed(6);
 
     if (!isNaN(rx) && !isNaN(tx)) {
       const diff = tx - rx;
-      if (Math.abs(diff) < 0.0001) {
-        col[3] = "";
-        col[4] = "0.000000";
-      } else if (diff < 0) {
-        col[3] = "-";
-        col[4] = Math.abs(diff).toFixed(6);
-      } else {
-        col[3] = "+";
-        col[4] = diff.toFixed(6);
-      }
-    } else {
-      col[3] = "";
-      col[4] = "0.000000";
-    }
+      if (Math.abs(diff) < 0.0001) { col[3] = ""; col[4] = "0.000000"; }
+      else if (diff < 0) { col[3] = "-"; col[4] = Math.abs(diff).toFixed(6); }
+      else { col[3] = "+"; col[4] = diff.toFixed(6); }
+    } else { col[3] = ""; col[4] = "0.000000"; }
 
-    if (role.ton) {
-      col[5] = "Tone";
-      col[6] = String(role.ton);
-      col[7] = String(role.ton);
-    } else {
-      col[5] = "";
-      col[6] = "88.5";
-      col[7] = "88.5";
-    }
+    if (role.ton) { col[5] = "Tone"; col[6] = String(role.ton); col[7] = String(role.ton); }
+    else { col[5] = ""; col[6] = "88.5"; col[7] = "88.5"; }
 
-    col[8] = d.dtcsCode;
-    col[9] = d.dtcsPolarity;
-    col[10] = d.rxDtcsCode;
-    col[11] = d.crossMode;
-    col[12] = d.mode;
-    col[13] = d.tStep;
-    col[14] = opsiyonlar.rxOnly ? "S" : "";
-    col[15] = gucDegeri;
-
-    satirlar.push(col.map(csvEscape).join(","));
+    col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
+    col[11] = d.crossMode; col[12] = d.mode; col[13] = d.tStep;
+    col[14] = opsiyonlar.rxOnly ? "S" : ""; col[15] = guc;
+    rows.push(col);
   }
 
-  // ── PMR channels ──
+  // PMR
   if (opsiyonlar.pmrEkle) {
     for (let i = 0; i < PMR_FREKANSLAR.length; i++) {
-      const col = boslukSatir(sutunSayisi);
-      col[0] = String(location++);
-      col[1] = `PMR ${i + 1}`;
-      col[2] = PMR_FREKANSLAR[i].toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = "";
-      col[6] = "88.5"; col[7] = "88.5";
+      const col = boslukSatir(n);
+      col[0] = String(loc++); col[1] = `PMR ${i + 1}`; col[2] = PMR_FREKANSLAR[i].toFixed(6);
+      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
-      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50";
-      col[14] = ""; col[15] = gucDegeri;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = guc;
+      rows.push(col);
     }
   }
 
-  // ── FM Broadcast channels (city-based) ──
+  // FM Broadcast
   if (opsiyonlar.fmRadyoEkle && opsiyonlar.fmSehirler?.length > 0) {
-    const fmList = fmIstasyonlariGetir(opsiyonlar.fmSehirler);
-    for (const ist of fmList) {
-      const col = boslukSatir(sutunSayisi);
-      col[0] = String(location++);
-      col[1] = ist.ad.slice(0, 10);
-      col[2] = ist.frek.toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = "";
-      col[6] = "88.5"; col[7] = "88.5";
+    for (const ist of fmIstasyonlariGetir(opsiyonlar.fmSehirler)) {
+      const col = boslukSatir(n);
+      col[0] = String(loc++); col[1] = ist.ad.slice(0, 10); col[2] = ist.frek.toFixed(6);
+      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
-      col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50";
-      col[14] = ""; col[15] = "0.1W";
-      satirlar.push(col.map(csvEscape).join(","));
+      col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = "0.1W";
+      rows.push(col);
     }
   }
 
-  // ── Airband channels ──
+  // Airband
   if (opsiyonlar.airbandEkle) {
     for (const ab of (opsiyonlar.airbandData || [])) {
-      const col = boslukSatir(sutunSayisi);
-      col[0] = String(location++);
-      col[1] = ab.ad.slice(0, 10);
-      col[2] = ab.frek.toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = "";
-      col[6] = "88.5"; col[7] = "88.5";
+      const col = boslukSatir(n);
+      col[0] = String(loc++); col[1] = ab.ad.slice(0, 10); col[2] = ab.frek.toFixed(6);
+      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
-      col[11] = "Tone->Tone"; col[12] = "AM"; col[13] = "25.00";
-      col[14] = "S"; col[15] = "0.1W";
-      satirlar.push(col.map(csvEscape).join(","));
+      col[11] = "Tone->Tone"; col[12] = "AM"; col[13] = "25.00"; col[14] = "S"; col[15] = "0.1W";
+      rows.push(col);
     }
   }
 
-  // ── Marine band channels ──
+  // Marine
   if (opsiyonlar.marineEkle) {
     for (const mb of (opsiyonlar.marineData || [])) {
-      const col = boslukSatir(sutunSayisi);
-      col[0] = String(location++);
-      col[1] = mb.ad.slice(0, 10);
-      col[2] = mb.frek.toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = "";
-      col[6] = "88.5"; col[7] = "88.5";
+      const col = boslukSatir(n);
+      col[0] = String(loc++); col[1] = mb.ad.slice(0, 10); col[2] = mb.frek.toFixed(6);
+      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
-      col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50";
-      col[14] = "S"; col[15] = "0.1W";
-      satirlar.push(col.map(csvEscape).join(","));
+      col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = "S"; col[15] = "0.1W";
+      rows.push(col);
     }
   }
 
-  // ── Digital Simplex channels ──
+  // Digital Simplex
   if (opsiyonlar.simplexEkle) {
-    const allSimplex = [...DIGITAL_SIMPLEX.uhf, ...DIGITAL_SIMPLEX.vhf];
-    for (const sx of allSimplex) {
-      const col = boslukSatir(sutunSayisi);
-      col[0] = String(location++);
-      const modKisa = sx.mod.replace("-", "").slice(0, 4);
+    for (const sx of [...DIGITAL_SIMPLEX.uhf, ...DIGITAL_SIMPLEX.vhf]) {
+      const col = boslukSatir(n);
+      col[0] = String(loc++);
+      const modK = sx.mod.replace("-", "").slice(0, 4);
       const band = parseFloat(sx.frek) > 200 ? "U" : "V";
-      col[1] = `${modKisa} ${band}SX`.slice(0, 10);
-      col[2] = parseFloat(sx.frek).toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = "";
-      col[6] = "88.5"; col[7] = "88.5";
+      col[1] = `${modK} ${band}SX`.slice(0, 10); col[2] = parseFloat(sx.frek).toFixed(6);
+      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
-      col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50";
-      col[14] = ""; col[15] = gucDegeri;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = guc;
+      rows.push(col);
     }
   }
 
-  // ── Empty analog channels ──
+  // Empty analog
   if (opsiyonlar.bosAnalogAdet > 0) {
-    const frek = parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5;
+    const f = (parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5).toFixed(6);
     for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
-      const col = boslukSatir(sutunSayisi);
-      col[0] = String(location++);
-      col[1] = `BOS A${i + 1}`;
-      col[2] = frek.toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = "";
-      col[6] = "88.5"; col[7] = "88.5";
+      const col = boslukSatir(n);
+      col[0] = String(loc++); col[1] = `BOS A${i + 1}`; col[2] = f;
+      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
-      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50";
-      col[14] = ""; col[15] = gucDegeri;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = guc;
+      rows.push(col);
     }
   }
 
-  // ── Empty digital channels ──
+  // Empty digital
   if (opsiyonlar.bosDijitalAdet > 0) {
-    const frek = parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5;
+    const f = (parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5).toFixed(6);
     for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
-      const col = boslukSatir(sutunSayisi);
-      col[0] = String(location++);
-      col[1] = `BOS D${i + 1}`;
-      col[2] = frek.toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = "";
-      col[6] = "88.5"; col[7] = "88.5";
+      const col = boslukSatir(n);
+      col[0] = String(loc++); col[1] = `BOS D${i + 1}`; col[2] = f;
+      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
-      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50";
-      col[14] = ""; col[15] = gucDegeri;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = guc;
+      rows.push(col);
     }
   }
 
-  return satirlar.join("\n");
+  return rows;
 }
 
-// ─── CPS CSV Generator ──────────────────────────────────────────────────────
+// ─── CPS row builder ─────────────────────────────────────────────────────────
 
-function cpsCsvOlustur(roleler, profil, opsiyonlar) {
-  const satirlar = [];
-  const sutunSayisi = profil.csvSutunlari.length;
+function cpsSatirlarUret(roleler, profil, opsiyonlar) {
+  const rows = [];
+  const n = profil.csvSutunlari.length;
   const d = profil.varsayilanDegerler;
-  const gucDegeri = profil.gucSeviyeleri[opsiyonlar.gucSeviyesi] || d.power;
+  const guc = profil.gucSeviyeleri[opsiyonlar.gucSeviyesi] || d.power;
 
-  satirlar.push(profil.csvSutunlari.join(","));
-
-  // ── Repeater channels ──
   for (const role of roleler) {
-    const col = Array(sutunSayisi).fill("0");
-
+    const col = Array(n).fill("0");
     col[0] = isDijital(role) ? "2" : "1";
     col[1] = role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati);
     col[2] = String(role.frekans || "").replace(",", ".");
     col[3] = role.txFrekansOverride || txFrekansHesapla(role, profil.shiftHesaplama);
-
-    col[4] = d.bandWidth;
-    col[6] = d.squelch;
-    col[9] = d.tot;
-    col[11] = gucDegeri;
-    col[14] = opsiyonlar.rxOnly ? "1" : "0";
-    col[25] = d.leaderMS;
-    col[27] = d.contactName;
-    col[28] = d.groupList;
-    col[29] = d.colorCode;
-    col[35] = "None";
-    col[36] = role.ton || "None";
-    col[40] = d.nonQtDqt;
-    col[41] = d.displayPtt;
-    col[42] = d.reverseBurst;
-
-    satirlar.push(col.map(csvEscape).join(","));
+    col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot; col[11] = guc;
+    col[14] = opsiyonlar.rxOnly ? "1" : "0"; col[25] = d.leaderMS;
+    col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
+    col[35] = "None"; col[36] = role.ton || "None";
+    col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+    rows.push(col);
   }
 
-  // ── PMR channels ──
   if (opsiyonlar.pmrEkle) {
     for (let i = 0; i < PMR_FREKANSLAR.length; i++) {
-      const col = Array(sutunSayisi).fill("0");
-      const frek = PMR_FREKANSLAR[i].toFixed(5);
-      col[0] = "1"; col[1] = `PMR ${i + 1}`;
-      col[2] = frek; col[3] = frek;
-      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot;
-      col[11] = gucDegeri; col[25] = d.leaderMS;
+      const col = Array(n).fill("0");
+      const f = PMR_FREKANSLAR[i].toFixed(5);
+      col[0] = "1"; col[1] = `PMR ${i + 1}`; col[2] = f; col[3] = f;
+      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot; col[11] = guc; col[25] = d.leaderMS;
       col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
-      col[35] = "None"; col[36] = "None";
-      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[35] = "None"; col[36] = "None"; col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      rows.push(col);
     }
   }
 
-  // ── dPMR channels ──
   if (opsiyonlar.dpmrEkle) {
     for (let i = 0; i < DPMR_FREKANSLAR.length; i++) {
-      const col = Array(sutunSayisi).fill("0");
-      const frek = DPMR_FREKANSLAR[i].toFixed(6);
-      col[0] = "2"; col[1] = `dPMR ${i + 1}`;
-      col[2] = frek; col[3] = frek;
-      col[4] = d.bandWidth; col[6] = "1"; col[9] = d.tot;
-      col[11] = gucDegeri; col[25] = d.leaderMS;
+      const col = Array(n).fill("0");
+      const f = DPMR_FREKANSLAR[i].toFixed(6);
+      col[0] = "2"; col[1] = `dPMR ${i + 1}`; col[2] = f; col[3] = f;
+      col[4] = d.bandWidth; col[6] = "1"; col[9] = d.tot; col[11] = guc; col[25] = d.leaderMS;
       col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
-      col[35] = "None"; col[36] = "None";
-      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[35] = "None"; col[36] = "None"; col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      rows.push(col);
     }
   }
 
-  // ── Empty analog channels ──
   if (opsiyonlar.bosAnalogAdet > 0) {
-    const frek = (parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5).toFixed(5);
+    const f = (parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5).toFixed(5);
     for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
-      const col = Array(sutunSayisi).fill("0");
-      col[0] = "1"; col[1] = `BOS A${i + 1}`;
-      col[2] = frek; col[3] = frek;
-      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot;
-      col[11] = gucDegeri; col[25] = d.leaderMS;
+      const col = Array(n).fill("0");
+      col[0] = "1"; col[1] = `BOS A${i + 1}`; col[2] = f; col[3] = f;
+      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot; col[11] = guc; col[25] = d.leaderMS;
       col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
-      col[35] = "None"; col[36] = "None";
-      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[35] = "None"; col[36] = "None"; col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      rows.push(col);
     }
   }
 
-  // ── Empty digital channels ──
   if (opsiyonlar.bosDijitalAdet > 0) {
-    const frek = (parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5).toFixed(5);
+    const f = (parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5).toFixed(5);
     for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
-      const col = Array(sutunSayisi).fill("0");
-      col[0] = "2"; col[1] = `BOS D${i + 1}`;
-      col[2] = frek; col[3] = frek;
-      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot;
-      col[11] = gucDegeri; col[25] = d.leaderMS;
+      const col = Array(n).fill("0");
+      col[0] = "2"; col[1] = `BOS D${i + 1}`; col[2] = f; col[3] = f;
+      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot; col[11] = guc; col[25] = d.leaderMS;
       col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
-      col[35] = "None"; col[36] = "None";
-      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
-      satirlar.push(col.map(csvEscape).join(","));
+      col[35] = "None"; col[36] = "None"; col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      rows.push(col);
     }
   }
 
-  return satirlar.join("\n");
+  return rows;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Routes CSV generation to the correct format handler based on device profile.
+ * Generates CSV row arrays for preview/editing.
+ * Returns { basliklar: string[], satirlar: string[][] }
+ */
+export function csvSatirlarUret(roleler, profil, opsiyonlar) {
+  const basliklar = profil.csvSutunlari;
+  const satirlar = profil.csvFormat === "chirp"
+    ? chirpSatirlarUret(roleler, profil, opsiyonlar)
+    : cpsSatirlarUret(roleler, profil, opsiyonlar);
+  return { basliklar, satirlar };
+}
+
+/**
+ * Converts header + row arrays to a CSV string.
+ */
+export function csvStringOlustur(basliklar, satirlar) {
+  const lines = [basliklar.join(",")];
+  for (const row of satirlar) {
+    lines.push(row.map(csvEscape).join(","));
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Shortcut: generate CSV string directly from roles.
  */
 export function csvOlustur(roleler, profil, opsiyonlar) {
-  if (profil.csvFormat === "chirp") {
-    return chirpCsvOlustur(roleler, profil, opsiyonlar);
-  }
-  return cpsCsvOlustur(roleler, profil, opsiyonlar);
+  const { basliklar, satirlar } = csvSatirlarUret(roleler, profil, opsiyonlar);
+  return csvStringOlustur(basliklar, satirlar);
 }
 
 /**
@@ -351,15 +276,12 @@ export function csvOlustur(roleler, profil, opsiyonlar) {
 export function csvIndir(icerik, dosyaAdi) {
   const blob = new Blob([icerik], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-
   const a = document.createElement("a");
   a.href = url;
   a.download = dosyaAdi;
   a.style.display = "none";
-
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-
   URL.revokeObjectURL(url);
 }
