@@ -17,6 +17,9 @@
  */
 
 import { getAssetFromKV } from "@cloudflare/kv-asset-handler";
+import manifestJSON from "__STATIC_CONTENT_MANIFEST";
+
+const assetManifest = JSON.parse(manifestJSON);
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -46,7 +49,10 @@ export default {
       try {
         return await getAssetFromKV(
           { request, waitUntil: (p) => ctx.waitUntil(p) },
-          {}
+          {
+            ASSET_NAMESPACE: env.__STATIC_CONTENT,
+            ASSET_MANIFEST: assetManifest,
+          }
         );
       } catch {
         return new Response("Not Found", { status: 404 });
