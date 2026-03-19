@@ -779,19 +779,64 @@ table th.sort-desc::after {
   gap: 10px;
 }
 
+/* ── Protected Channel Groups ───────────────────────────── */
+.protected-group {
+  position: relative;
+  overflow: hidden;
+}
+
+.protected-overlay {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.protected-overlay:hover {
+  opacity: 0.85;
+}
+
+.protected-lock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(240, 165, 0, 0.15);
+  border: 1px solid rgba(240, 165, 0, 0.3);
+  border-radius: 8px;
+  color: var(--warning);
+  flex-shrink: 0;
+}
+
+.protected-label-text {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+}
+
 .protected-badge {
   display: inline-block;
-  font-size: 0.7rem;
-  padding: 1px 6px;
+  font-size: 0.65rem;
+  padding: 2px 8px;
   background: var(--warning);
   color: #111;
-  border-radius: 4px;
-  margin-left: 6px;
-  vertical-align: middle;
-  font-weight: 600;
+  border-radius: 10px;
+  margin-left: auto;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .protected-unlocked {
   background: var(--success);
+}
+
+.protected-unlocked-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 

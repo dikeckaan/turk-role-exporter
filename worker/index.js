@@ -157,12 +157,60 @@ async function verifyToken(token, password, secret) {
   return token === prev;
 }
 
+// ─── Rate limiting (in-memory, per-worker-instance) ─────────────────────────
+
+const AUTH_ATTEMPTS = new Map(); // IP → { count, resetAt }
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 60 * 1000; // 1 minute
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = AUTH_ATTEMPTS.get(ip);
+  if (!entry || now > entry.resetAt) {
+    AUTH_ATTEMPTS.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  if (entry.count > MAX_ATTEMPTS) return false;
+  return true;
+}
+
+// ─── Timing-safe comparison ─────────────────────────────────────────────────
+
+async function timingSafeEqual(a, b) {
+  const encoder = new TextEncoder();
+  const aBuf = encoder.encode(a);
+  const bBuf = encoder.encode(b);
+  if (aBuf.length !== bBuf.length) {
+    // Compare against self to keep constant time
+    const key = await crypto.subtle.importKey(
+      "raw", aBuf, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    );
+    await crypto.subtle.sign("HMAC", key, aBuf);
+    return false;
+  }
+  const key = await crypto.subtle.importKey(
+    "raw", aBuf, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sigA = new Uint8Array(await crypto.subtle.sign("HMAC", key, aBuf));
+  const sigB = new Uint8Array(await crypto.subtle.sign("HMAC", key, bBuf));
+  let result = 0;
+  for (let i = 0; i < sigA.length; i++) result |= sigA[i] ^ sigB[i];
+  return result === 0;
+}
+
 // ─── Auth & protected handlers ───────────────────────────────────────────────
 
 async function handleAuthVerify(request, env) {
   if (request.method !== "POST") {
     return jsonResponse({ hata: "POST gerekli" }, 405);
   }
+
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (!checkRateLimit(ip)) {
+    return jsonResponse({ hata: "Cok fazla deneme. 1 dakika bekleyin." }, 429);
+  }
+
   let body;
   try {
     body = await request.json();
@@ -171,7 +219,7 @@ async function handleAuthVerify(request, env) {
   }
   const password = body?.password;
   const secret = env.PROTECTED_PASSWORD;
-  if (!password || !secret || password !== secret) {
+  if (!password || !secret || !(await timingSafeEqual(password, secret))) {
     return jsonResponse({ hata: "Yanlis sifre" }, 401);
   }
   const token = await generateToken(password, secret);

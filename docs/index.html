@@ -211,18 +211,38 @@
           </label>
           <small id="fm-sehir-bilgi" class="device-note"></small>
         </div>
-        <div class="filter-group" id="opsiyon-airband-group" style="display:none;">
-          <label>
+        <div class="filter-group protected-group" id="opsiyon-airband-group" style="display:none;">
+          <div class="protected-overlay" id="airband-overlay">
+            <div class="protected-lock-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <span class="protected-label-text">Havacilik Kanallari</span>
+            <span class="protected-badge">Sifre Gerekli</span>
+          </div>
+          <label class="protected-unlocked-label" id="airband-unlocked" style="display:none;">
             <input type="checkbox" id="opsiyon-airband" class="toggle">
             Havacilik (Air Band) Kanallari Ekle
-            <span class="protected-badge">Sifre</span>
+            <span class="protected-badge protected-unlocked">Acik</span>
           </label>
         </div>
-        <div class="filter-group" id="opsiyon-marine-group" style="display:none;">
-          <label>
+        <div class="filter-group protected-group" id="opsiyon-marine-group" style="display:none;">
+          <div class="protected-overlay" id="marine-overlay">
+            <div class="protected-lock-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <span class="protected-label-text">Denizcilik Kanallari</span>
+            <span class="protected-badge">Sifre Gerekli</span>
+          </div>
+          <label class="protected-unlocked-label" id="marine-unlocked" style="display:none;">
             <input type="checkbox" id="opsiyon-marine" class="toggle">
             Denizcilik (Marine Band) Kanallari Ekle
-            <span class="protected-badge">Sifre</span>
+            <span class="protected-badge protected-unlocked">Acik</span>
           </label>
         </div>
         <div class="filter-group" id="opsiyon-simplex-group" style="display:none;">

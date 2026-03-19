@@ -752,15 +752,15 @@ async function sifreOnayla() {
 }
 
 function korunanlariGuncelle(unlocked) {
-  document.querySelectorAll(".protected-badge").forEach((el) => {
-    if (unlocked) {
-      el.textContent = "Acik";
-      el.classList.add("protected-unlocked");
-    } else {
-      el.textContent = "Sifre";
-      el.classList.remove("protected-unlocked");
+  // Toggle overlay vs unlocked label for airband/marine
+  for (const prefix of ["airband", "marine"]) {
+    const overlay = document.getElementById(`${prefix}-overlay`);
+    const label = document.getElementById(`${prefix}-unlocked`);
+    if (overlay && label) {
+      overlay.style.display = unlocked ? "none" : "flex";
+      label.style.display = unlocked ? "" : "none";
     }
-  });
+  }
 }
 
 // ─── Event Listeners ──────────────────────────────────────
@@ -788,6 +788,14 @@ function dinleyicileriKur() {
       }
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     });
+  });
+
+  // Protected overlay clicks — open password modal
+  document.getElementById("airband-overlay")?.addEventListener("click", () => {
+    sifreModaliGoster("opsiyon-airband");
+  });
+  document.getElementById("marine-overlay")?.addEventListener("click", () => {
+    sifreModaliGoster("opsiyon-marine");
   });
 
   // Modal buttons
