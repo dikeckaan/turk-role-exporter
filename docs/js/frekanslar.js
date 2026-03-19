@@ -454,6 +454,8 @@ export function ekKanalSayisi(opsiyonlar) {
   if (opsiyonlar.simplexEkle) {
     toplam += DIGITAL_SIMPLEX.uhf.length + DIGITAL_SIMPLEX.vhf.length;
   }
+  toplam += (opsiyonlar.bosAnalogAdet || 0);
+  toplam += (opsiyonlar.bosDijitalAdet || 0);
   return toplam;
 }
 
@@ -478,6 +480,12 @@ export function kanalDagilimi(roleCount, opsiyonlar) {
       ad: "Simplex",
       sayi: DIGITAL_SIMPLEX.uhf.length + DIGITAL_SIMPLEX.vhf.length,
     });
+  }
+  if (opsiyonlar.bosAnalogAdet > 0) {
+    items.push({ ad: "Bos Analog", sayi: opsiyonlar.bosAnalogAdet });
+  }
+  if (opsiyonlar.bosDijitalAdet > 0) {
+    items.push({ ad: "Bos Dijital", sayi: opsiyonlar.bosDijitalAdet });
   }
 
   return items;

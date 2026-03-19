@@ -3,7 +3,15 @@ import { puanHesapla, kanalAdiOlustur, txFrekansHesapla, isDijital } from "./uti
 let siralamaAlani = null;
 let siralamaYonu = "asc";
 
-export function tabloGuncelle(roleler, kanalAdiFormati, shiftHesaplama) {
+/**
+ * Updates the preview table with editable channel names and delete buttons.
+ * @param {Array} roleler - Repeater list
+ * @param {string} kanalAdiFormati - Channel name format
+ * @param {object} shiftHesaplama - TX shift map
+ * @param {object} [callbacks] - { onSil, onAdDegistir } callbacks
+ * @param {Array} [bosKanallar] - Empty channels to append
+ */
+export function tabloGuncelle(roleler, kanalAdiFormati, shiftHesaplama, callbacks, bosKanallar) {
   const aramaInput = document.getElementById("tablo-arama");
   const aramaMetni = aramaInput ? aramaInput.value.toLowerCase() : "";
 
@@ -54,11 +62,39 @@ export function tabloGuncelle(roleler, kanalAdiFormati, shiftHesaplama) {
     tbody.removeChild(tbody.firstChild);
   }
 
-  for (const role of filtrelenmis) {
+  let siraNo = 1;
+
+  for (let i = 0; i < filtrelenmis.length; i++) {
+    const role = filtrelenmis[i];
     const satir = document.createElement("tr");
 
+    // Row number
+    const siraTd = document.createElement("td");
+    siraTd.className = "td-sira";
+    siraTd.textContent = siraNo++;
+    satir.appendChild(siraTd);
+
+    // Editable channel name
+    const kanalAdi = role.kanalAdiOverride || kanalAdiOlustur(role, kanalAdiFormati);
+    const kanalTd = document.createElement("td");
+    const kanalSpan = document.createElement("span");
+    kanalSpan.className = "td-kanal-adi";
+    kanalSpan.contentEditable = "true";
+    kanalSpan.textContent = kanalAdi;
+    kanalSpan.spellcheck = false;
+    kanalSpan.addEventListener("blur", () => {
+      const yeniAd = kanalSpan.textContent.trim();
+      if (yeniAd && yeniAd !== kanalAdi && callbacks?.onAdDegistir) {
+        callbacks.onAdDegistir(i, yeniAd);
+      }
+    });
+    kanalSpan.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); kanalSpan.blur(); }
+    });
+    kanalTd.appendChild(kanalSpan);
+    satir.appendChild(kanalTd);
+
     const sutunlar = [
-      kanalAdiOlustur(role, kanalAdiFormati),
       role.frekans || "-",
       txFrekansHesapla(role, shiftHesaplama) || "-",
       role.bant || "-",
@@ -77,7 +113,72 @@ export function tabloGuncelle(roleler, kanalAdiFormati, shiftHesaplama) {
       satir.appendChild(hucre);
     }
 
+    // Delete button
+    const islemTd = document.createElement("td");
+    islemTd.className = "td-islem";
+    const silBtn = document.createElement("button");
+    silBtn.type = "button";
+    silBtn.className = "btn-sil";
+    silBtn.textContent = "\u00D7";
+    silBtn.title = "Kanali kaldir";
+    silBtn.addEventListener("click", () => {
+      if (callbacks?.onSil) {
+        callbacks.onSil(i);
+      }
+    });
+    islemTd.appendChild(silBtn);
+    satir.appendChild(islemTd);
+
     tbody.appendChild(satir);
+  }
+
+  // Append empty channels
+  if (bosKanallar && bosKanallar.length > 0) {
+    for (let i = 0; i < bosKanallar.length; i++) {
+      const bk = bosKanallar[i];
+      const satir = document.createElement("tr");
+      satir.className = "tr-bos-kanal";
+
+      const siraTd = document.createElement("td");
+      siraTd.className = "td-sira";
+      siraTd.textContent = siraNo++;
+      satir.appendChild(siraTd);
+
+      const sutunlar = [
+        bk.ad,
+        bk.frekans,
+        bk.frekans,
+        bk.bant,
+        bk.mod,
+        "-",
+        "-",
+        "-",
+        "-",
+        "-",
+        "Bos Kanal",
+      ];
+
+      for (const deger of sutunlar) {
+        const hucre = document.createElement("td");
+        hucre.textContent = deger;
+        satir.appendChild(hucre);
+      }
+
+      const islemTd = document.createElement("td");
+      islemTd.className = "td-islem";
+      satir.appendChild(islemTd);
+
+      tbody.appendChild(satir);
+    }
+  }
+
+  // Update info
+  const bilgiEl = document.getElementById("onizleme-bilgi");
+  if (bilgiEl) {
+    const bosAdet = bosKanallar?.length || 0;
+    const parts = [`${filtrelenmis.length} role`];
+    if (bosAdet > 0) parts.push(`${bosAdet} bos kanal`);
+    bilgiEl.textContent = `(${parts.join(" + ")})`;
   }
 }
 

@@ -31,6 +31,8 @@ let authToken = sessionStorage.getItem("authToken") || null;
 let airbandData = null;
 let marineData = null;
 
+let duzenlenmisRoleler = [];
+
 let amatortelsizcilikYuklendi = false;
 let taroleYuklendi = false;
 let amatortelsizcilikYuklenmeZamani = null;
@@ -477,6 +479,7 @@ function cihazOpsiyonlariGuncelle() {
   goster("opsiyon-airband-group", ek.airBand);
   goster("opsiyon-marine-group", ek.marineBand);
   goster("opsiyon-simplex-group", true); // always visible
+  goster("bos-dijital-satir", dijitalVar);
 }
 
 // ─── Filter Lists ─────────────────────────────────────────
@@ -611,10 +614,70 @@ function opsiyonTopla() {
     dosyaAdi:
       document.getElementById("dosya-adi")?.value ||
       "roleler_programlama.csv",
+    bosAnalogAdet: parseInt(document.getElementById("bos-analog-adet")?.value) || 0,
+    bosAnalogFrekans: document.getElementById("bos-analog-frekans")?.value || "145.500",
+    bosDijitalAdet: parseInt(document.getElementById("bos-dijital-adet")?.value) || 0,
+    bosDijitalFrekans: document.getElementById("bos-dijital-frekans")?.value || "438.500",
   };
 }
 
 // ─── Main Apply ───────────────────────────────────────────
+
+function bosKanalListesiOlustur(opsiyonlar) {
+  const liste = [];
+  if (opsiyonlar.bosAnalogAdet > 0) {
+    const frek = parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5;
+    const bant = frek < 300 ? "VHF" : "UHF";
+    for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
+      liste.push({ ad: `BOS A${i + 1}`, frekans: frek.toFixed(5), bant, mod: "Analog" });
+    }
+  }
+  if (opsiyonlar.bosDijitalAdet > 0) {
+    const frek = parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5;
+    const bant = frek < 300 ? "VHF" : "UHF";
+    for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
+      liste.push({ ad: `BOS D${i + 1}`, frekans: frek.toFixed(5), bant, mod: "Dijital" });
+    }
+  }
+  return liste;
+}
+
+function formatUyarisiKontrol(profil, opsiyonlar) {
+  const uyarilar = [];
+  const dijitalDestekli = profil.modlar.includes("Dijital");
+
+  if (!dijitalDestekli) {
+    if (opsiyonlar.dpmrEkle) {
+      uyarilar.push("dPMR kanallari eklendi ama bu cihaz dijital modlari desteklemiyor.");
+    }
+    if (opsiyonlar.simplexEkle) {
+      uyarilar.push("Dijital simplex kanallari eklendi ama bu cihaz dijital modlari desteklemiyor.");
+    }
+    if (opsiyonlar.bosDijitalAdet > 0) {
+      uyarilar.push("Bos dijital kanal eklendi ama bu cihaz dijital modlari desteklemiyor.");
+    }
+  }
+
+  const ek = profil.ekOzellikler || {};
+  if (opsiyonlar.airbandEkle && !ek.airBand) {
+    uyarilar.push("Air Band kanallari eklendi ama bu cihaz air band desteklemiyor.");
+  }
+  if (opsiyonlar.marineEkle && !ek.marineBand) {
+    uyarilar.push("Marine Band kanallari eklendi ama bu cihaz marine band desteklemiyor.");
+  }
+  if (opsiyonlar.fmRadyoEkle && !ek.fmRadyo) {
+    uyarilar.push("FM radyo kanallari eklendi ama bu cihaz FM radyo desteklemiyor.");
+  }
+
+  const el = document.getElementById("format-uyari");
+  if (!el) return;
+  if (uyarilar.length > 0) {
+    el.textContent = uyarilar.join(" ");
+    el.style.display = "block";
+  } else {
+    el.style.display = "none";
+  }
+}
 
 function uygula() {
   const profil = cihazProfili(seciliCihaz);
@@ -631,16 +694,63 @@ function uygula() {
     });
   }
 
+  // Reset edited list from filtered
+  duzenlenmisRoleler = [...filtrelenmisRoleler];
+
   const opsiyonlar = opsiyonTopla();
   fmBilgiGuncelle();
+  formatUyarisiKontrol(profil, opsiyonlar);
 
-  tabloGuncelle(filtrelenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama);
+  const bosKanallar = bosKanalListesiOlustur(opsiyonlar);
+
+  const tabloCallbacks = {
+    onSil: (index) => {
+      duzenlenmisRoleler.splice(index, 1);
+      tabloYenile();
+    },
+    onAdDegistir: (index, yeniAd) => {
+      if (duzenlenmisRoleler[index]) {
+        duzenlenmisRoleler[index] = Object.assign({}, duzenlenmisRoleler[index], {
+          kanalAdiOverride: yeniAd,
+        });
+      }
+    },
+  };
+
+  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacks, bosKanallar);
   pinleriGuncelle(filtrelenmisRoleler);
   istatistikleriGuncelle();
 
-  // Channel limit check
+  kanalSayisiGuncelle(profil, opsiyonlar);
+}
+
+function tabloYenile() {
+  const profil = cihazProfili(seciliCihaz);
+  if (!profil) return;
+  const opsiyonlar = opsiyonTopla();
+  const bosKanallar = bosKanalListesiOlustur(opsiyonlar);
+
+  const tabloCallbacks = {
+    onSil: (index) => {
+      duzenlenmisRoleler.splice(index, 1);
+      tabloYenile();
+    },
+    onAdDegistir: (index, yeniAd) => {
+      if (duzenlenmisRoleler[index]) {
+        duzenlenmisRoleler[index] = Object.assign({}, duzenlenmisRoleler[index], {
+          kanalAdiOverride: yeniAd,
+        });
+      }
+    },
+  };
+
+  tabloGuncelle(duzenlenmisRoleler, opsiyonlar.kanalAdiFormati, profil.shiftHesaplama, tabloCallbacks, bosKanallar);
+  kanalSayisiGuncelle(profil, opsiyonlar);
+}
+
+function kanalSayisiGuncelle(profil, opsiyonlar) {
   const ekSayisi = ekKanalSayisi(opsiyonlar);
-  const toplamKanal = filtrelenmisRoleler.length + ekSayisi;
+  const toplamKanal = duzenlenmisRoleler.length + ekSayisi;
 
   const indirBtn = document.getElementById("csv-indir-btn");
   const kanalSayisiEl = document.getElementById("kanal-sayisi");
@@ -652,23 +762,66 @@ function uygula() {
     if (indirBtn) { indirBtn.classList.add("disabled"); indirBtn.disabled = true; }
     if (maxUyari) {
       const fazla = toplamKanal - profil.maxKanal;
-      const dagilim = kanalDagilimi(filtrelenmisRoleler.length, opsiyonlar);
-      let html = `<strong>${profil.ad}</strong> max <strong>${profil.maxKanal}</strong> kanal. `;
-      html += `Toplam <strong>${toplamKanal}</strong> — <strong>${fazla}</strong> fazla!`;
-      html += `<div class="kanal-dagilimi"><div class="kanal-dagilimi-baslik">Kanal Dagilimi:</div>`;
+      const dagilim = kanalDagilimi(duzenlenmisRoleler.length, opsiyonlar);
+      maxUyari.textContent = "";
+
+      const baslik = document.createElement("div");
+      baslik.innerHTML = "";
+      const b1 = document.createElement("strong");
+      b1.textContent = profil.ad;
+      baslik.appendChild(b1);
+      baslik.appendChild(document.createTextNode(" max "));
+      const b2 = document.createElement("strong");
+      b2.textContent = profil.maxKanal;
+      baslik.appendChild(b2);
+      baslik.appendChild(document.createTextNode(" kanal. Toplam "));
+      const b3 = document.createElement("strong");
+      b3.textContent = toplamKanal;
+      baslik.appendChild(b3);
+      baslik.appendChild(document.createTextNode(" — "));
+      const b4 = document.createElement("strong");
+      b4.textContent = fazla;
+      baslik.appendChild(b4);
+      baslik.appendChild(document.createTextNode(" fazla!"));
+      maxUyari.appendChild(baslik);
+
+      const dagDiv = document.createElement("div");
+      dagDiv.className = "kanal-dagilimi";
+      const dagBaslik = document.createElement("div");
+      dagBaslik.className = "kanal-dagilimi-baslik";
+      dagBaslik.textContent = "Kanal Dagilimi:";
+      dagDiv.appendChild(dagBaslik);
+
       for (const item of dagilim) {
-        html += `<div class="kanal-dagilimi-satir">`;
-        html += `<span class="kanal-ad">${item.ad}${item.zorunlu ? "" : " ✕"}</span>`;
-        html += `<span class="kanal-sayi">${item.sayi}</span></div>`;
+        const satir = document.createElement("div");
+        satir.className = "kanal-dagilimi-satir";
+        const adSpan = document.createElement("span");
+        adSpan.className = "kanal-ad";
+        adSpan.textContent = item.ad + (item.zorunlu ? "" : " \u2715");
+        const sayiSpan = document.createElement("span");
+        sayiSpan.className = "kanal-sayi";
+        sayiSpan.textContent = item.sayi;
+        satir.appendChild(adSpan);
+        satir.appendChild(sayiSpan);
+        dagDiv.appendChild(satir);
       }
-      html += `<div class="kanal-dagilimi-toplam"><span>Toplam</span>`;
-      html += `<span>${toplamKanal} / ${profil.maxKanal}</span></div></div>`;
-      maxUyari.innerHTML = html;
+
+      const toplamDiv = document.createElement("div");
+      toplamDiv.className = "kanal-dagilimi-toplam";
+      const toplamLabel = document.createElement("span");
+      toplamLabel.textContent = "Toplam";
+      const toplamValue = document.createElement("span");
+      toplamValue.textContent = `${toplamKanal} / ${profil.maxKanal}`;
+      toplamDiv.appendChild(toplamLabel);
+      toplamDiv.appendChild(toplamValue);
+      dagDiv.appendChild(toplamDiv);
+
+      maxUyari.appendChild(dagDiv);
       maxUyari.style.display = "block";
     }
   } else {
     if (indirBtn) { indirBtn.classList.remove("disabled"); indirBtn.disabled = false; }
-    if (maxUyari) { maxUyari.innerHTML = ""; maxUyari.style.display = "none"; }
+    if (maxUyari) { maxUyari.textContent = ""; maxUyari.style.display = "none"; }
   }
 }
 
@@ -778,6 +931,13 @@ function dinleyicileriKur() {
     });
   });
 
+  // Empty channel inputs
+  ["bos-analog-adet", "bos-analog-frekans", "bos-dijital-adet", "bos-dijital-frekans"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", () => {
+      document.dispatchEvent(new CustomEvent("filtre-degisti"));
+    });
+  });
+
   // Password-gated Air Band / Marine Band
   ["opsiyon-airband", "opsiyon-marine"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (e) => {
@@ -822,9 +982,7 @@ function dinleyicileriKur() {
   });
 
   document.getElementById("tablo-arama")?.addEventListener("input", () => {
-    const profil = cihazProfili(seciliCihaz);
-    const opsiyonlar = opsiyonTopla();
-    tabloGuncelle(filtrelenmisRoleler, opsiyonlar.kanalAdiFormati, profil?.shiftHesaplama);
+    tabloYenile();
   });
 
   document.getElementById("sehir-arama")?.addEventListener("input", (e) => {
@@ -852,7 +1010,7 @@ function dinleyicileriKur() {
     const profil = cihazProfili(seciliCihaz);
     if (!profil) return;
     const opsiyonlar = opsiyonTopla();
-    const csv = csvOlustur(filtrelenmisRoleler, profil, opsiyonlar);
+    const csv = csvOlustur(duzenlenmisRoleler, profil, opsiyonlar);
     let dosyaAdi = opsiyonlar.dosyaAdi;
     if (!dosyaAdi.endsWith(".csv")) dosyaAdi += ".csv";
     csvIndir(csv, dosyaAdi);

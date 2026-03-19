@@ -251,6 +251,28 @@
             Digital Simplex Kanallari Ekle
           </label>
         </div>
+        <!-- Bos Kanal -->
+        <div class="filter-group" id="opsiyon-boskanal-group">
+          <label>Bos Kanal Ekle</label>
+          <div class="bos-kanal-ayarlar">
+            <div class="bos-kanal-satir">
+              <span class="bos-kanal-etiket">Analog</span>
+              <input type="number" id="bos-analog-adet" min="0" max="200" value="0" class="small-input">
+              <span>adet</span>
+              <input type="text" id="bos-analog-frekans" placeholder="145.500" class="small-input frekans-input">
+              <span>MHz</span>
+            </div>
+            <div class="bos-kanal-satir" id="bos-dijital-satir">
+              <span class="bos-kanal-etiket">Dijital</span>
+              <input type="number" id="bos-dijital-adet" min="0" max="200" value="0" class="small-input">
+              <span>adet</span>
+              <input type="text" id="bos-dijital-frekans" placeholder="438.500" class="small-input frekans-input">
+              <span>MHz</span>
+            </div>
+          </div>
+          <small class="device-note">Programlama icin bos kanal rezerve eder</small>
+        </div>
+
         <div class="filter-group">
           <label>
             <input type="checkbox" id="opsiyon-rxonly" class="toggle" checked>
@@ -278,12 +300,16 @@
 
     <!-- Onizleme Tablosu -->
     <div class="section">
-      <div class="section-title">Onizleme</div>
+      <div class="section-title">Onizleme
+        <span class="section-subtitle" id="onizleme-bilgi"></span>
+      </div>
+      <div id="format-uyari" class="format-uyari" style="display:none;"></div>
       <input type="text" id="tablo-arama" class="search-input" placeholder="Tabloda ara...">
       <div class="table-container">
         <table id="onizleme-tablosu">
           <thead>
             <tr>
+              <th class="th-sira">#</th>
               <th data-alan="kanalAdi">Kanal Adi</th>
               <th data-alan="frekans">RX Frekans</th>
               <th data-alan="txFrekans">TX Frekans</th>
@@ -295,6 +321,7 @@
               <th data-alan="sehir">Sehir</th>
               <th data-alan="ilce">Ilce</th>
               <th data-alan="konum">Konum</th>
+              <th class="th-islem">Islem</th>
             </tr>
           </thead>
           <tbody></tbody>

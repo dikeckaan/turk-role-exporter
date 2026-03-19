@@ -66,7 +66,7 @@ function chirpCsvOlustur(roleler, profil, opsiyonlar) {
     const tx = parseFloat(txStr);
 
     col[0] = String(location++);
-    col[1] = kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati).slice(0, 10);
+    col[1] = (role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati)).slice(0, 10);
     col[2] = rx.toFixed(6);
 
     if (!isNaN(rx) && !isNaN(tx)) {
@@ -192,6 +192,40 @@ function chirpCsvOlustur(roleler, profil, opsiyonlar) {
     }
   }
 
+  // ── Empty analog channels ──
+  if (opsiyonlar.bosAnalogAdet > 0) {
+    const frek = parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5;
+    for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
+      const col = boslukSatir(sutunSayisi);
+      col[0] = String(location++);
+      col[1] = `BOS A${i + 1}`;
+      col[2] = frek.toFixed(6);
+      col[3] = ""; col[4] = "0.000000"; col[5] = "";
+      col[6] = "88.5"; col[7] = "88.5";
+      col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
+      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50";
+      col[14] = ""; col[15] = gucDegeri;
+      satirlar.push(col.map(csvEscape).join(","));
+    }
+  }
+
+  // ── Empty digital channels ──
+  if (opsiyonlar.bosDijitalAdet > 0) {
+    const frek = parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5;
+    for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
+      const col = boslukSatir(sutunSayisi);
+      col[0] = String(location++);
+      col[1] = `BOS D${i + 1}`;
+      col[2] = frek.toFixed(6);
+      col[3] = ""; col[4] = "0.000000"; col[5] = "";
+      col[6] = "88.5"; col[7] = "88.5";
+      col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
+      col[11] = d.crossMode; col[12] = "FM"; col[13] = "12.50";
+      col[14] = ""; col[15] = gucDegeri;
+      satirlar.push(col.map(csvEscape).join(","));
+    }
+  }
+
   return satirlar.join("\n");
 }
 
@@ -210,7 +244,7 @@ function cpsCsvOlustur(roleler, profil, opsiyonlar) {
     const col = Array(sutunSayisi).fill("0");
 
     col[0] = isDijital(role) ? "2" : "1";
-    col[1] = kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati);
+    col[1] = role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati);
     col[2] = String(role.frekans || "").replace(",", ".");
     col[3] = txFrekansHesapla(role, profil.shiftHesaplama);
 
@@ -256,6 +290,38 @@ function cpsCsvOlustur(roleler, profil, opsiyonlar) {
       col[0] = "2"; col[1] = `dPMR ${i + 1}`;
       col[2] = frek; col[3] = frek;
       col[4] = d.bandWidth; col[6] = "1"; col[9] = d.tot;
+      col[11] = gucDegeri; col[25] = d.leaderMS;
+      col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
+      col[35] = "None"; col[36] = "None";
+      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      satirlar.push(col.map(csvEscape).join(","));
+    }
+  }
+
+  // ── Empty analog channels ──
+  if (opsiyonlar.bosAnalogAdet > 0) {
+    const frek = (parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5).toFixed(5);
+    for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
+      const col = Array(sutunSayisi).fill("0");
+      col[0] = "1"; col[1] = `BOS A${i + 1}`;
+      col[2] = frek; col[3] = frek;
+      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot;
+      col[11] = gucDegeri; col[25] = d.leaderMS;
+      col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
+      col[35] = "None"; col[36] = "None";
+      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      satirlar.push(col.map(csvEscape).join(","));
+    }
+  }
+
+  // ── Empty digital channels ──
+  if (opsiyonlar.bosDijitalAdet > 0) {
+    const frek = (parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5).toFixed(5);
+    for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
+      const col = Array(sutunSayisi).fill("0");
+      col[0] = "2"; col[1] = `BOS D${i + 1}`;
+      col[2] = frek; col[3] = frek;
+      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot;
       col[11] = gucDegeri; col[25] = d.leaderMS;
       col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
       col[35] = "None"; col[36] = "None";
