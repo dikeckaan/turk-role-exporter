@@ -6,3 +6,5 @@ varsayilan.csv
 .superpowers/
 .DS_Store
 node_modules/
+.wrangler/
+.dev.vars
