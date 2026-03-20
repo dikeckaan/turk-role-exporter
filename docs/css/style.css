@@ -160,7 +160,7 @@ body {
 }
 
 .filter-group label.sub-option {
-  margin-left: 24px;
+  margin-left: 0;
   font-size: 0.82rem;
   margin-top: -2px;
 }
@@ -857,6 +857,7 @@ table th.sort-desc::after {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   font-size: 0.85rem;
   color: var(--text-muted);
 }
