@@ -56,7 +56,9 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
     col[1] = (role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati)).slice(0, 10);
     col[2] = rx.toFixed(6);
 
-    if (!isNaN(rx) && !isNaN(tx)) {
+    if (opsiyonlar.rxOnly) {
+      col[3] = "off"; col[4] = "0.000000";
+    } else if (!isNaN(rx) && !isNaN(tx)) {
       const diff = tx - rx;
       if (Math.abs(diff) < 0.0001) { col[3] = ""; col[4] = "0.000000"; }
       else if (diff < 0) { col[3] = "-"; col[4] = Math.abs(diff).toFixed(6); }
