@@ -159,6 +159,12 @@ body {
   margin-bottom: 8px;
 }
 
+.filter-group label.sub-option {
+  margin-left: 24px;
+  font-size: 0.82rem;
+  margin-top: -2px;
+}
+
 /* ── Toggle Switch ───────────────────────────────────────── */
 .toggle {
   appearance: none;

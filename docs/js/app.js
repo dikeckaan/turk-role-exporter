@@ -597,7 +597,9 @@ function filtreTopla() {
 function opsiyonTopla() {
   return {
     pmrEkle: document.getElementById("opsiyon-pmr")?.checked ?? false,
+    pmrRxOnly: document.getElementById("opsiyon-pmr-rxonly")?.checked ?? false,
     dpmrEkle: document.getElementById("opsiyon-dpmr")?.checked ?? false,
+    dpmrRxOnly: document.getElementById("opsiyon-dpmr-rxonly")?.checked ?? false,
     fmRadyoEkle: document.getElementById("opsiyon-fmradyo")?.checked ?? false,
     fmSehirler: fmSehirleriBelirle(),
     airbandEkle: document.getElementById("opsiyon-airband")?.checked ?? false,
@@ -875,10 +877,21 @@ function dinleyicileriKur() {
     "filtre-aktif", "filtre-ruhsat", "filtre-puan",
     "opsiyon-pmr", "opsiyon-dpmr", "opsiyon-fmradyo",
     "opsiyon-simplex", "opsiyon-rxonly",
+    "opsiyon-pmr-rxonly", "opsiyon-dpmr-rxonly",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     });
+  });
+
+  // Show/hide PMR and dPMR RX Only sub-options
+  document.getElementById("opsiyon-pmr")?.addEventListener("change", (e) => {
+    const label = document.getElementById("opsiyon-pmr-rxonly-label");
+    if (label) label.style.display = e.target.checked ? "" : "none";
+  });
+  document.getElementById("opsiyon-dpmr")?.addEventListener("change", (e) => {
+    const label = document.getElementById("opsiyon-dpmr-rxonly-label");
+    if (label) label.style.display = e.target.checked ? "" : "none";
   });
 
   // Empty channel inputs
