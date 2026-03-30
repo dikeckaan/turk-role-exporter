@@ -68,6 +68,7 @@ export const CIHAZ_PROFILLERI = {
     },
     shiftHesaplama: { VHF: -0.600, UHF: -7.600 },
     gucSeviyeleri: { High: "2", Mid: "1", Low: "0" },
+    varsayilanKanalFormati: "plaka-bant-konum",
   },
 };
 

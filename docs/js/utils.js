@@ -149,14 +149,13 @@ export function sehirPlaka(sehir) {
 }
 
 /**
- * Builds a channel name (max 15 chars) from a repeater role object.
+ * Builds a channel name from a repeater role object.
  *
  * Supported formats:
- *   "plaka-konum-bant" (default): "{plaka} {konum} {bant}"
- *   "sehir-konum":                "{sehir (7 chars)} {konum}"
- *   "plaka-konum":                "{plaka} {konum}"
- *
- * Truncation: if result >15 chars, try without bant; if still >15, slice to 15.
+ *   "plaka-konum-bant" (default): "{plaka} {konum} {bant}" (max 15)
+ *   "sehir-konum":                "{sehir (7 chars)} {konum}" (max 15)
+ *   "plaka-konum":                "{plaka} {konum}" (max 15)
+ *   "plaka-bant-konum":           "{plaka}{V/U} {konum}" (max 16, MDUV390)
  *
  * @param {object} role
  * @param {string} [format="plaka-konum-bant"]
@@ -165,12 +164,45 @@ export function sehirPlaka(sehir) {
 export function kanalAdiOlustur(role, format = "plaka-konum-bant") {
   const plaka = sehirPlaka(role.sehir);
 
+  const bant = role.bant ? temizleTurkce(String(role.bant)) : "";
+
+  if (format === "plaka-bant-konum") {
+    // MDUV390 optimized: "01V RuzgarliTep" (max 16 chars)
+    const bantUp = bant.toUpperCase();
+    const bantHarf = bantUp.startsWith("U") ? "U"
+      : bantUp.startsWith("V") ? "V"
+      : bantUp.startsWith("A") ? "A"   // APRS
+      : bantUp.startsWith("C") ? "X"   // Cross-band
+      : bantUp.startsWith("E") ? "E"   // ECHO
+      : "V";
+    const prefix = `${plaka}${bantHarf} `; // e.g. "01V "
+    const maxKonum = 16 - prefix.length;
+    const konumFull = temizleTurkce(
+      role.konum ? String(role.konum) : String(role.id)
+    );
+    // Remove spaces between words and use camelCase-like compaction
+    const konumWords = konumFull.split(/\s+/).filter(Boolean);
+    let konum;
+    if (konumWords.length === 1) {
+      konum = konumWords[0].slice(0, maxKonum);
+    } else {
+      // Try full join first, then progressively trim
+      konum = konumWords.join(" ");
+      if (konum.length > maxKonum) {
+        // Try joining without spaces (compact form)
+        konum = konumWords.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join("");
+        if (konum.length > maxKonum) {
+          konum = konum.slice(0, maxKonum);
+        }
+      }
+    }
+    return `${prefix}${konum}`.trim();
+  }
+
   const konumRaw = role.konum
     ? String(role.konum).split(" ")[0]
     : String(role.id);
   const konum = temizleTurkce(konumRaw).slice(0, 7);
-
-  const bant = role.bant ? temizleTurkce(String(role.bant)) : "";
 
   let name;
 

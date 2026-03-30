@@ -479,6 +479,12 @@ function cihazOpsiyonlariGuncelle() {
   goster("opsiyon-marine-group", ek.marineBand);
   goster("opsiyon-simplex-group", true); // always visible
   goster("bos-dijital-satir", dijitalVar);
+
+  // Auto-select device-recommended channel name format (reset to default if none)
+  const formatSelect = document.getElementById("kanal-format-select");
+  if (formatSelect) {
+    formatSelect.value = profil.varsayilanKanalFormati || "plaka-konum-bant";
+  }
 }
 
 // ─── Filter Lists ─────────────────────────────────────────
