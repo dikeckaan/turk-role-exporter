@@ -149,6 +149,37 @@ export function sehirPlaka(sehir) {
 }
 
 /**
+ * Returns a single-letter band indicator.
+ */
+function bantHarfi(bant) {
+  const b = (bant || "").toUpperCase();
+  return b.startsWith("U") ? "U"
+    : b.startsWith("V") ? "V"
+    : b.startsWith("A") ? "A"   // APRS
+    : b.startsWith("C") ? "X"   // Cross-band
+    : b.startsWith("E") ? "E"   // ECHO
+    : "V";
+}
+
+/**
+ * Compacts a konum string to fit maxLen chars.
+ * Strategy: full text → remove spaces (CamelCase) → truncate.
+ */
+function konumSigdir(role, maxLen) {
+  const konumFull = temizleTurkce(
+    role.konum ? String(role.konum) : String(role.id)
+  );
+  const words = konumFull.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) return (words[0] || "").slice(0, maxLen);
+
+  const spaced = words.join(" ");
+  if (spaced.length <= maxLen) return spaced;
+
+  const compact = words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join("");
+  return compact.slice(0, maxLen);
+}
+
+/**
  * Builds a channel name from a repeater role object.
  *
  * Supported formats:
@@ -156,6 +187,7 @@ export function sehirPlaka(sehir) {
  *   "sehir-konum":                "{sehir (7 chars)} {konum}" (max 15)
  *   "plaka-konum":                "{plaka} {konum}" (max 15)
  *   "plaka-bant-konum":           "{plaka}{V/U} {konum}" (max 16, MDUV390)
+ *   "plaka-bant-konum-kisa":      "{plaka}{V/U}{konum}" (max 10, UV-K5)
  *
  * @param {object} role
  * @param {string} [format="plaka-konum-bant"]
@@ -163,40 +195,18 @@ export function sehirPlaka(sehir) {
  */
 export function kanalAdiOlustur(role, format = "plaka-konum-bant") {
   const plaka = sehirPlaka(role.sehir);
-
   const bant = role.bant ? temizleTurkce(String(role.bant)) : "";
 
   if (format === "plaka-bant-konum") {
-    // MDUV390 optimized: "01V RuzgarliTep" (max 16 chars)
-    const bantUp = bant.toUpperCase();
-    const bantHarf = bantUp.startsWith("U") ? "U"
-      : bantUp.startsWith("V") ? "V"
-      : bantUp.startsWith("A") ? "A"   // APRS
-      : bantUp.startsWith("C") ? "X"   // Cross-band
-      : bantUp.startsWith("E") ? "E"   // ECHO
-      : "V";
-    const prefix = `${plaka}${bantHarf} `; // e.g. "01V "
-    const maxKonum = 16 - prefix.length;
-    const konumFull = temizleTurkce(
-      role.konum ? String(role.konum) : String(role.id)
-    );
-    // Remove spaces between words and use camelCase-like compaction
-    const konumWords = konumFull.split(/\s+/).filter(Boolean);
-    let konum;
-    if (konumWords.length === 1) {
-      konum = konumWords[0].slice(0, maxKonum);
-    } else {
-      // Try full join first, then progressively trim
-      konum = konumWords.join(" ");
-      if (konum.length > maxKonum) {
-        // Try joining without spaces (compact form)
-        konum = konumWords.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join("");
-        if (konum.length > maxKonum) {
-          konum = konum.slice(0, maxKonum);
-        }
-      }
-    }
-    return `${prefix}${konum}`.trim();
+    // MDUV390: "01V RuzgarliTepe" (max 16 chars)
+    const prefix = `${plaka}${bantHarfi(bant)} `;
+    return `${prefix}${konumSigdir(role, 16 - prefix.length)}`.trim();
+  }
+
+  if (format === "plaka-bant-konum-kisa") {
+    // UV-K5: "01V Ruzgar" (max 10 chars)
+    const prefix = `${plaka}${bantHarfi(bant)}`;
+    return `${prefix}${konumSigdir(role, 10 - prefix.length)}`.trim();
   }
 
   const konumRaw = role.konum

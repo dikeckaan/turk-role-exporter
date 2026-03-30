@@ -17,7 +17,7 @@ import {
 import {
   sehirdenFmKey,
 } from "./frekanslar.js";
-import { normalizeTurkce, isDijital } from "./utils.js";
+import { normalizeTurkce, isDijital, sehirPlaka } from "./utils.js";
 
 // ─── State ────────────────────────────────────────────────
 let amatortelsizcilikRoleler = [];
@@ -675,11 +675,24 @@ function uygula() {
   const filtreler = filtreTopla();
   filtrelenmisRoleler = filtrele(birlesikRoleler, filtreler, profil);
 
+  // Sort by plaka (city code), then frequency within same city
+  filtrelenmisRoleler.sort((a, b) => {
+    const plakaA = sehirPlaka(a.sehir);
+    const plakaB = sehirPlaka(b.sehir);
+    if (plakaA !== plakaB) return plakaA.localeCompare(plakaB, undefined, { numeric: true });
+    return parseFloat(a.frekans || 0) - parseFloat(b.frekans || 0);
+  });
+
   if (filtreler.mod === "dijital-oncelikli") {
     filtrelenmisRoleler.sort((a, b) => {
       const da = isDijital(a) ? 0 : 1;
       const db = isDijital(b) ? 0 : 1;
-      return da - db;
+      if (da !== db) return da - db;
+      // Keep plaka order within same digital/analog group
+      const plakaA = sehirPlaka(a.sehir);
+      const plakaB = sehirPlaka(b.sehir);
+      if (plakaA !== plakaB) return plakaA.localeCompare(plakaB, undefined, { numeric: true });
+      return parseFloat(a.frekans || 0) - parseFloat(b.frekans || 0);
     });
   }
 

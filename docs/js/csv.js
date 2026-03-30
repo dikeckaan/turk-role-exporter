@@ -244,6 +244,44 @@ function cpsSatirlarUret(roleler, profil, opsiyonlar) {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
+ * Patches duplicate channel names by appending a short frequency hint.
+ * e.g. two "34U KayisdagiTRAC" → "34U KayisdagTRAC" + "34U KayisdagTRC2"
+ * Respects maxLen so the patched name doesn't exceed device limits.
+ */
+function duplicateIsimleriPatchle(satirlar, nameCol, freqCol, maxLen) {
+  // Count occurrences of each name
+  const sayac = {};
+  for (const row of satirlar) {
+    const name = row[nameCol];
+    sayac[name] = (sayac[name] || 0) + 1;
+  }
+
+  // For duplicates, append frequency decimal part as suffix
+  const gorulen = {};
+  for (const row of satirlar) {
+    const name = row[nameCol];
+    if (sayac[name] <= 1) continue;
+
+    // Build a short freq suffix: "439.2625" → ".26", "145.700" → ".70"
+    const frek = String(row[freqCol]);
+    const dotIdx = frek.indexOf(".");
+    const decimal = dotIdx >= 0 ? frek.slice(dotIdx, dotIdx + 3) : "";
+
+    // Ensure uniqueness: if same name+suffix already used, extend decimal
+    let suffix = decimal;
+    const key = name + suffix;
+    if (gorulen[key]) {
+      suffix = dotIdx >= 0 ? frek.slice(dotIdx, dotIdx + 5) : String(gorulen[key]);
+    }
+    gorulen[name + suffix] = (gorulen[name + suffix] || 0) + 1;
+
+    // Trim the base name to fit suffix within maxLen
+    const trimmedName = name.slice(0, maxLen - suffix.length);
+    row[nameCol] = `${trimmedName}${suffix}`;
+  }
+}
+
+/**
  * Generates CSV row arrays for preview/editing.
  * Returns { basliklar: string[], satirlar: string[][] }
  */
@@ -252,6 +290,12 @@ export function csvSatirlarUret(roleler, profil, opsiyonlar) {
   const satirlar = profil.csvFormat === "chirp"
     ? chirpSatirlarUret(roleler, profil, opsiyonlar)
     : cpsSatirlarUret(roleler, profil, opsiyonlar);
+
+  // Patch duplicate channel names with frequency hints
+  const maxLen = profil.csvFormat === "chirp" ? 10 : 16;
+  const freqCol = 2; // Both CHIRP and CPS have frequency at col 2
+  duplicateIsimleriPatchle(satirlar, 1, freqCol, maxLen);
+
   return { basliklar, satirlar };
 }
 

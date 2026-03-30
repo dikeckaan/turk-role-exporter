@@ -21,6 +21,7 @@ export const CIHAZ_PROFILLERI = {
       mode: "FM",
     },
     shiftHesaplama: { VHF: -0.600, UHF: -7.600 },
+    varsayilanKanalFormati: "plaka-bant-konum-kisa",
     gucSeviyeleri: {
       High: "5.0W",
       Mid: "2.0W",
