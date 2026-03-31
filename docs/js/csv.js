@@ -42,6 +42,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
   const rows = [];
   const n = profil.csvSutunlari.length;
   const d = profil.varsayilanDegerler;
+  const maxAd = profil.maxKanalAdi || 10;
   const guc = profil.gucSeviyeleri[opsiyonlar.gucSeviyesi] || "5.0W";
   let loc = 1;
 
@@ -53,7 +54,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
     const tx = parseFloat(txStr);
 
     col[0] = String(loc++);
-    col[1] = (role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati)).slice(0, 10);
+    col[1] = (role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati)).slice(0, maxAd);
     col[2] = rx.toFixed(6);
 
     if (opsiyonlar.rxOnly) {
@@ -90,7 +91,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
   if (opsiyonlar.fmRadyoEkle && opsiyonlar.fmSehirler?.length > 0) {
     for (const ist of fmIstasyonlariGetir(opsiyonlar.fmSehirler)) {
       const col = boslukSatir(n);
-      col[0] = String(loc++); col[1] = ist.ad.slice(0, 10); col[2] = ist.frek.toFixed(6);
+      col[0] = String(loc++); col[1] = ist.ad.slice(0, maxAd); col[2] = ist.frek.toFixed(6);
       col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
       col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = "0.1W";
@@ -102,7 +103,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
   if (opsiyonlar.airbandEkle) {
     for (const ab of (opsiyonlar.airbandData || [])) {
       const col = boslukSatir(n);
-      col[0] = String(loc++); col[1] = ab.ad.slice(0, 10); col[2] = ab.frek.toFixed(6);
+      col[0] = String(loc++); col[1] = ab.ad.slice(0, maxAd); col[2] = ab.frek.toFixed(6);
       col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
       col[11] = "Tone->Tone"; col[12] = "AM"; col[13] = "25.00"; col[14] = "S"; col[15] = "0.1W";
@@ -114,7 +115,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
   if (opsiyonlar.marineEkle) {
     for (const mb of (opsiyonlar.marineData || [])) {
       const col = boslukSatir(n);
-      col[0] = String(loc++); col[1] = mb.ad.slice(0, 10); col[2] = mb.frek.toFixed(6);
+      col[0] = String(loc++); col[1] = mb.ad.slice(0, maxAd); col[2] = mb.frek.toFixed(6);
       col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
       col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = "S"; col[15] = "0.1W";
@@ -129,7 +130,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
       col[0] = String(loc++);
       const modK = sx.mod.replace("-", "").slice(0, 4);
       const band = parseFloat(sx.frek) > 200 ? "U" : "V";
-      col[1] = `${modK} ${band}SX`.slice(0, 10); col[2] = parseFloat(sx.frek).toFixed(6);
+      col[1] = `${modK} ${band}SX`.slice(0, maxAd); col[2] = parseFloat(sx.frek).toFixed(6);
       col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
       col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = guc;
@@ -292,7 +293,7 @@ export function csvSatirlarUret(roleler, profil, opsiyonlar) {
     : cpsSatirlarUret(roleler, profil, opsiyonlar);
 
   // Patch duplicate channel names with frequency hints
-  const maxLen = profil.csvFormat === "chirp" ? 10 : 16;
+  const maxLen = profil.maxKanalAdi || (profil.csvFormat === "chirp" ? 10 : 16);
   const freqCol = 2; // Both CHIRP and CPS have frequency at col 2
   duplicateIsimleriPatchle(satirlar, 1, freqCol, maxLen);
 
