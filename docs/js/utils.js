@@ -162,6 +162,20 @@ function bantHarfi(bant) {
 }
 
 /**
+ * Truncates text at a word boundary when possible.
+ * Falls back to hard cut if the last space is too early.
+ */
+function truncateAtWord(text, maxLen) {
+  if (text.length <= maxLen) return text;
+  const truncated = text.slice(0, maxLen);
+  if (maxLen >= 12) {
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > maxLen * 0.5) return truncated.slice(0, lastSpace);
+  }
+  return truncated;
+}
+
+/**
  * Compacts a konum string to fit maxLen chars.
  * Strategy: full text → remove spaces (CamelCase) → truncate.
  */
@@ -230,7 +244,7 @@ export function kanalAdiOlustur(role, format = "plaka-konum-bant") {
   }
 
   if (name.length > 15) {
-    name = name.slice(0, 15);
+    name = truncateAtWord(name, 15);
   }
 
   return name.trim();
@@ -246,6 +260,7 @@ export function kanalAdiOlustur(role, format = "plaka-konum-bant") {
 /**
  * Normalizes Turkish characters to lowercase ASCII.
  * Unlike temizleTurkce, keeps all characters (no stripping).
+ * NOTE: Keep in sync with normalizeTurkish() in worker/index.js (v1.1)
  */
 export function normalizeTurkce(text) {
   if (!text) return "";

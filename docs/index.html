@@ -10,18 +10,23 @@
 <body>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <a href="#main-content" class="skip-link">Iceriye Atla</a>
+
   <div class="container">
     <!-- Banner -->
-    <div id="banner-container"></div>
+    <div id="banner-container" role="alert" aria-live="polite"></div>
 
     <!-- Header -->
     <div class="header">
       <h1>Turk Role Exporter</h1>
       <p>Turkiye amator telsiz rolelerini CPS/CHIRP uyumlu CSV formatinda indirin</p>
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Tema degistir">
+        <span id="theme-icon">☀️</span> <span id="theme-label">Acik Tema</span>
+      </button>
     </div>
 
     <!-- Cihaz Secici -->
-    <div class="section">
+    <div class="section" id="main-content">
       <div class="section-title">Cihaz Secimi</div>
       <select id="cihaz-select"></select>
       <div id="cihaz-bilgi" class="device-info-card" style="display:none;">
@@ -305,6 +310,10 @@
           <label for="dosya-adi">Dosya Adi</label>
           <input type="text" id="dosya-adi" value="roleler_programlama.csv">
         </div>
+        <div class="filter-group">
+          <label>Preset'ler</label>
+          <div id="preset-container"></div>
+        </div>
       </div>
     </div>
 
@@ -312,10 +321,14 @@
     <div class="section">
       <div class="download-section">
         <div class="channel-count">
-          Toplam Kanal: <span class="count-value" id="kanal-sayisi">0</span>
+          Toplam Kanal: <span class="count-value" id="kanal-sayisi" aria-live="polite">0</span>
         </div>
         <div id="max-kanal-uyari" class="max-kanal-uyari"></div>
-        <button type="button" id="csv-indir-btn" class="btn-primary">CSV Indir</button>
+        <select id="export-format" aria-label="Export formati" style="width:auto;padding:8px 12px;">
+          <option value="csv">CSV</option>
+          <option value="json">JSON</option>
+        </select>
+        <button type="button" id="csv-indir-btn" class="btn-primary">Indir</button>
         <label class="btn-secondary csv-import-label" for="csv-import-input">CSV Yukle</label>
         <input type="file" id="csv-import-input" accept=".csv" style="display:none;">
       </div>
@@ -325,9 +338,10 @@
     <!-- Onizleme Tablosu -->
     <div class="section">
       <div class="section-title">Onizleme
-        <span class="section-subtitle" id="onizleme-bilgi"></span>
+        <span class="section-subtitle" id="onizleme-bilgi" aria-live="polite"></span>
       </div>
       <div id="format-uyari" class="format-uyari" style="display:none;"></div>
+      <div id="undo-redo-container" style="display:flex;gap:8px;margin-bottom:10px;"></div>
       <input type="text" id="tablo-arama" class="search-input" placeholder="Tabloda ara...">
       <div class="table-container">
         <table id="onizleme-tablosu">
@@ -339,10 +353,10 @@
   </div>
 
   <!-- Sifre Modali -->
-  <div id="sifre-modal" class="modal-overlay" style="display:none;">
+  <div id="sifre-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sifre-modal-baslik" style="display:none;">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Sifre Gerekli</h3>
+        <h3 id="sifre-modal-baslik">Sifre Gerekli</h3>
         <button type="button" id="sifre-modal-kapat" class="modal-close">&times;</button>
       </div>
       <p class="modal-desc">Air Band ve Marine Band kanallarina erismek icin sifre girin.</p>

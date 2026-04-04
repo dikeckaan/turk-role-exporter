@@ -450,6 +450,7 @@ function slugToLabel(slug) {
 /**
  * Normalizes Turkish characters to ASCII for consistent matching.
  * İ→i, ı→i, Ş→s, ş→s, Ç→c, ç→c, Ğ→g, ğ→g, Ö→o, ö→o, Ü→u, ü→u
+ * NOTE: Keep in sync with normalizeTurkce() in docs/js/utils.js (v1.1)
  */
 function normalizeTurkish(str) {
   return str

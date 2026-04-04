@@ -1,11 +1,14 @@
 /**
  * tablo.js
- * Renders the CSV preview table with fully editable cells.
+ * Renders the CSV preview table with fully editable cells and pagination.
  * Shows the exact CSV output — what you see is what you export.
  */
 
+let mevcutSayfa = 1;
+let sayfaBoyutu = 100;
+
 /**
- * Renders editable CSV preview table.
+ * Renders editable CSV preview table with pagination.
  * @param {string[]} basliklar - CSV column headers
  * @param {string[][]} satirlar - CSV row arrays (mutable)
  * @param {object} callbacks - { onSil(rowIndex), onHucreDegistir(rowIndex, colIndex, value) }
@@ -43,7 +46,6 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
   const aramaInput = document.getElementById("tablo-arama");
   const aramaMetni = aramaInput ? aramaInput.value.toLowerCase() : "";
 
-  // Build index map (filtered index → original index)
   const gorunurIndexler = [];
   for (let i = 0; i < satirlar.length; i++) {
     if (aramaMetni) {
@@ -55,22 +57,30 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     gorunurIndexler.push(i);
   }
 
+  // Pagination calculations
+  const toplamSayfa = sayfaBoyutu === 0
+    ? 1
+    : Math.max(1, Math.ceil(gorunurIndexler.length / sayfaBoyutu));
+  if (mevcutSayfa > toplamSayfa) mevcutSayfa = toplamSayfa;
+
+  const baslangic = sayfaBoyutu === 0 ? 0 : (mevcutSayfa - 1) * sayfaBoyutu;
+  const bitis = sayfaBoyutu === 0 ? gorunurIndexler.length : Math.min(baslangic + sayfaBoyutu, gorunurIndexler.length);
+  const sayfaIndexler = gorunurIndexler.slice(baslangic, bitis);
+
   const tbody = tablo.querySelector("tbody");
   if (!tbody) return;
   tbody.replaceChildren();
 
-  for (let vi = 0; vi < gorunurIndexler.length; vi++) {
-    const origIdx = gorunurIndexler[vi];
+  for (let vi = 0; vi < sayfaIndexler.length; vi++) {
+    const origIdx = sayfaIndexler[vi];
     const row = satirlar[origIdx];
     const tr = document.createElement("tr");
 
-    // Row number
     const siraTd = document.createElement("td");
     siraTd.className = "td-sira";
-    siraTd.textContent = vi + 1;
+    siraTd.textContent = baslangic + vi + 1;
     tr.appendChild(siraTd);
 
-    // CSV cells — all editable
     for (let ci = 0; ci < row.length; ci++) {
       const td = document.createElement("td");
       const span = document.createElement("span");
@@ -78,6 +88,8 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       span.contentEditable = "true";
       span.textContent = row[ci];
       span.spellcheck = false;
+      span.setAttribute("role", "textbox");
+      span.setAttribute("aria-label", basliklar[ci] || `Sutun ${ci + 1}`);
 
       span.addEventListener("blur", () => {
         const yeni = span.textContent;
@@ -101,7 +113,6 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       tr.appendChild(td);
     }
 
-    // Delete button
     const islemTd = document.createElement("td");
     islemTd.className = "td-islem";
     const silBtn = document.createElement("button");
@@ -109,6 +120,7 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     silBtn.className = "btn-sil";
     silBtn.textContent = "\u00D7";
     silBtn.title = "Satiri sil";
+    silBtn.setAttribute("aria-label", `Satir ${baslangic + vi + 1} sil`);
     silBtn.addEventListener("click", () => {
       if (callbacks?.onSil) callbacks.onSil(origIdx);
     });
@@ -123,6 +135,78 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
   if (bilgiEl) {
     bilgiEl.textContent = `(${gorunurIndexler.length} / ${satirlar.length} satir)`;
   }
+
+  // Pagination controls
+  renderPaginasyon(tablo, gorunurIndexler.length, toplamSayfa, basliklar, satirlar, callbacks);
+}
+
+function renderPaginasyon(tablo, toplamGorunur, toplamSayfa, basliklar, satirlar, callbacks) {
+  let navEl = document.getElementById("tablo-paginasyon");
+  if (!navEl) {
+    navEl = document.createElement("div");
+    navEl.id = "tablo-paginasyon";
+    navEl.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;flex-wrap:wrap;font-size:0.85rem;";
+    tablo.parentNode.insertBefore(navEl, tablo.nextSibling);
+  }
+  navEl.replaceChildren();
+
+  // Page size selector
+  const sizeDiv = document.createElement("div");
+  sizeDiv.style.cssText = "display:flex;align-items:center;gap:6px;";
+  const sizeLabel = document.createElement("span");
+  sizeLabel.textContent = "Sayfa boyutu:";
+  sizeLabel.style.color = "var(--text-muted)";
+  const sizeSelect = document.createElement("select");
+  sizeSelect.setAttribute("aria-label", "Sayfa boyutu");
+  sizeSelect.style.cssText = "width:auto;padding:4px 8px;font-size:0.82rem;";
+  for (const size of [50, 100, 250, 0]) {
+    const opt = document.createElement("option");
+    opt.value = size;
+    opt.textContent = size === 0 ? "Tumu" : String(size);
+    if (size === sayfaBoyutu) opt.selected = true;
+    sizeSelect.appendChild(opt);
+  }
+  sizeSelect.addEventListener("change", () => {
+    sayfaBoyutu = parseInt(sizeSelect.value);
+    mevcutSayfa = 1;
+    csvTabloGuncelle(basliklar, satirlar, callbacks);
+  });
+  sizeDiv.appendChild(sizeLabel);
+  sizeDiv.appendChild(sizeSelect);
+  navEl.appendChild(sizeDiv);
+
+  if (toplamSayfa <= 1) return;
+
+  // Page navigation
+  const pageDiv = document.createElement("div");
+  pageDiv.style.cssText = "display:flex;align-items:center;gap:6px;";
+
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "btn-secondary btn-sm";
+  prevBtn.textContent = "← Onceki";
+  prevBtn.disabled = mevcutSayfa <= 1;
+  prevBtn.addEventListener("click", () => {
+    if (mevcutSayfa > 1) { mevcutSayfa--; csvTabloGuncelle(basliklar, satirlar, callbacks); }
+  });
+
+  const pageInfo = document.createElement("span");
+  pageInfo.style.color = "var(--text-muted)";
+  pageInfo.textContent = `Sayfa ${mevcutSayfa} / ${toplamSayfa}`;
+
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "btn-secondary btn-sm";
+  nextBtn.textContent = "Sonraki →";
+  nextBtn.disabled = mevcutSayfa >= toplamSayfa;
+  nextBtn.addEventListener("click", () => {
+    if (mevcutSayfa < toplamSayfa) { mevcutSayfa++; csvTabloGuncelle(basliklar, satirlar, callbacks); }
+  });
+
+  pageDiv.appendChild(prevBtn);
+  pageDiv.appendChild(pageInfo);
+  pageDiv.appendChild(nextBtn);
+  navEl.appendChild(pageDiv);
 }
 
 function selectAll(el) {

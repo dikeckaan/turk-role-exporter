@@ -20,6 +20,12 @@ function csvEscape(val) {
 
 function boslukSatir(n) { return Array(n).fill(""); }
 
+function validateFrekans(value, defaultVal, minRange, maxRange) {
+  const parsed = parseFloat(value);
+  if (isNaN(parsed) || parsed < minRange || parsed > maxRange) return defaultVal;
+  return parsed;
+}
+
 // ─── PMR / dPMR ──────────────────────────────────────────────────────────────
 
 const PMR_FREKANSLAR = [
@@ -140,7 +146,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
 
   // Empty analog
   if (opsiyonlar.bosAnalogAdet > 0) {
-    const f = (parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5).toFixed(6);
+    const f = validateFrekans(opsiyonlar.bosAnalogFrekans, 145.5, 130.0, 480.0).toFixed(6);
     for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
       const col = boslukSatir(n);
       col[0] = String(loc++); col[1] = `BOS A${i + 1}`; col[2] = f;
@@ -153,7 +159,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
 
   // Empty digital
   if (opsiyonlar.bosDijitalAdet > 0) {
-    const f = (parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5).toFixed(6);
+    const f = validateFrekans(opsiyonlar.bosDijitalFrekans, 438.5, 130.0, 480.0).toFixed(6);
     for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
       const col = boslukSatir(n);
       col[0] = String(loc++); col[1] = `BOS D${i + 1}`; col[2] = f;
@@ -216,7 +222,7 @@ function cpsSatirlarUret(roleler, profil, opsiyonlar) {
   }
 
   if (opsiyonlar.bosAnalogAdet > 0) {
-    const f = (parseFloat(opsiyonlar.bosAnalogFrekans) || 145.5).toFixed(5);
+    const f = validateFrekans(opsiyonlar.bosAnalogFrekans, 145.5, 130.0, 480.0).toFixed(5);
     for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
       const col = Array(n).fill("0");
       col[0] = "1"; col[1] = `BOS A${i + 1}`; col[2] = f; col[3] = f;
@@ -228,7 +234,7 @@ function cpsSatirlarUret(roleler, profil, opsiyonlar) {
   }
 
   if (opsiyonlar.bosDijitalAdet > 0) {
-    const f = (parseFloat(opsiyonlar.bosDijitalFrekans) || 438.5).toFixed(5);
+    const f = validateFrekans(opsiyonlar.bosDijitalFrekans, 438.5, 130.0, 480.0).toFixed(5);
     for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
       const col = Array(n).fill("0");
       col[0] = "2"; col[1] = `BOS D${i + 1}`; col[2] = f; col[3] = f;
@@ -317,6 +323,33 @@ export function csvStringOlustur(basliklar, satirlar) {
 export function csvOlustur(roleler, profil, opsiyonlar) {
   const { basliklar, satirlar } = csvSatirlarUret(roleler, profil, opsiyonlar);
   return csvStringOlustur(basliklar, satirlar);
+}
+
+/**
+ * Converts header + row arrays to a JSON string.
+ */
+export function jsonOlustur(basliklar, satirlar) {
+  return JSON.stringify(satirlar.map(row => {
+    const obj = {};
+    basliklar.forEach((h, i) => obj[h] = row[i] ?? "");
+    return obj;
+  }), null, 2);
+}
+
+/**
+ * Triggers a browser download of the given content.
+ */
+export function jsonIndir(icerik, dosyaAdi) {
+  const blob = new Blob([icerik], { type: "application/json;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = dosyaAdi;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 /**
