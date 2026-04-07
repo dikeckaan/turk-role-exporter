@@ -248,6 +248,96 @@ function cpsSatirlarUret(roleler, profil, opsiyonlar) {
   return rows;
 }
 
+// ─── OpenGD77 row builder ────────────────────────────────────────────────────
+
+function opengd77Satir(profil, loc, isim, rxNum, txNum, dijital, ton, rxOnly, gucLabel) {
+  const n = profil.csvSutunlari.length;
+  const d = profil.varsayilanDegerler;
+  const col = Array(n).fill("");
+  col[0] = String(loc);
+  col[1] = isim;
+  col[2] = dijital ? "Digital" : "Analogue";
+  col[3] = "\t" + (isNaN(rxNum) ? "0.0000" : rxNum.toFixed(4));
+  col[4] = "\t" + (isNaN(txNum) ? "0.0000" : txNum.toFixed(4));
+  col[5] = dijital ? "" : d.bandwidth;
+  col[6] = dijital ? d.colourCode : "";
+  col[7] = dijital ? d.timeslot : "";
+  col[8] = "";
+  col[9] = d.tgList;
+  col[10] = d.dmrId;
+  col[11] = "Off";
+  col[12] = "Off";
+  col[13] = !dijital && ton ? String(ton) : "None";
+  col[14] = !dijital && ton ? String(ton) : "None";
+  col[15] = d.squelch;
+  col[16] = gucLabel;
+  col[17] = rxOnly ? "Yes" : "No";
+  col[18] = "No";
+  col[19] = "No";
+  col[20] = "0";
+  col[21] = "Off";
+  col[22] = "No";
+  col[23] = "No";
+  col[24] = "None";
+  col[25] = "0";
+  col[26] = "0";
+  col[27] = "No";
+  return col;
+}
+
+function opengd77SatirlarUret(roleler, profil, opsiyonlar) {
+  const rows = [];
+  const maxAd = profil.maxKanalAdi || 16;
+  const gucLabel = opsiyonlar.gucSeviyesi || "Master";
+  let loc = 1;
+
+  for (const role of roleler) {
+    const rxStr = String(role.frekans || "").replace(",", ".");
+    const rx = parseFloat(rxStr);
+    const txStr = role.txFrekansOverride || txFrekansHesapla(role, profil.shiftHesaplama);
+    const tx = parseFloat(txStr);
+    const dijital = isDijital(role);
+    const isim = (role.kanalAdiOverride || kanalAdiOlustur(role, opsiyonlar.kanalAdiFormati)).slice(0, maxAd);
+    rows.push(opengd77Satir(profil, loc++, isim, rx, opsiyonlar.rxOnly ? rx : tx, dijital, role.ton, opsiyonlar.rxOnly, gucLabel));
+  }
+
+  // PMR
+  if (opsiyonlar.pmrEkle) {
+    for (let i = 0; i < PMR_FREKANSLAR.length; i++) {
+      const f = PMR_FREKANSLAR[i];
+      rows.push(opengd77Satir(profil, loc++, `PMR ${i + 1}`, f, f, false, null, opsiyonlar.pmrRxOnly, gucLabel));
+    }
+  }
+
+  // Digital Simplex
+  if (opsiyonlar.simplexEkle) {
+    for (const sx of [...DIGITAL_SIMPLEX.uhf, ...DIGITAL_SIMPLEX.vhf]) {
+      const f = parseFloat(sx.frek);
+      const band = f > 200 ? "U" : "V";
+      const modK = sx.mod.replace("-", "").slice(0, 4);
+      rows.push(opengd77Satir(profil, loc++, `${modK} ${band}SX`.slice(0, maxAd), f, f, true, null, false, gucLabel));
+    }
+  }
+
+  // Empty analog
+  if (opsiyonlar.bosAnalogAdet > 0) {
+    const f = validateFrekans(opsiyonlar.bosAnalogFrekans, 145.5, 130.0, 480.0);
+    for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {
+      rows.push(opengd77Satir(profil, loc++, `BOS A${i + 1}`, f, f, false, null, false, gucLabel));
+    }
+  }
+
+  // Empty digital
+  if (opsiyonlar.bosDijitalAdet > 0) {
+    const f = validateFrekans(opsiyonlar.bosDijitalFrekans, 438.5, 130.0, 480.0);
+    for (let i = 0; i < opsiyonlar.bosDijitalAdet; i++) {
+      rows.push(opengd77Satir(profil, loc++, `BOS D${i + 1}`, f, f, true, null, false, gucLabel));
+    }
+  }
+
+  return rows;
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -294,13 +384,14 @@ function duplicateIsimleriPatchle(satirlar, nameCol, freqCol, maxLen) {
  */
 export function csvSatirlarUret(roleler, profil, opsiyonlar) {
   const basliklar = profil.csvSutunlari;
-  const satirlar = profil.csvFormat === "chirp"
-    ? chirpSatirlarUret(roleler, profil, opsiyonlar)
-    : cpsSatirlarUret(roleler, profil, opsiyonlar);
+  let satirlar;
+  if (profil.csvFormat === "chirp") satirlar = chirpSatirlarUret(roleler, profil, opsiyonlar);
+  else if (profil.csvFormat === "opengd77") satirlar = opengd77SatirlarUret(roleler, profil, opsiyonlar);
+  else satirlar = cpsSatirlarUret(roleler, profil, opsiyonlar);
 
   // Patch duplicate channel names with frequency hints
   const maxLen = profil.maxKanalAdi || (profil.csvFormat === "chirp" ? 10 : 16);
-  const freqCol = 2; // Both CHIRP and CPS have frequency at col 2
+  const freqCol = profil.csvFormat === "opengd77" ? 3 : 2;
   duplicateIsimleriPatchle(satirlar, 1, freqCol, maxLen);
 
   return { basliklar, satirlar };

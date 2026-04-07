@@ -69,7 +69,9 @@ export function cihazBilgiGuncelle() {
 
   const formatEl = document.getElementById("cihaz-bilgi-format");
   if (formatEl) {
-    formatEl.textContent = profil.csvFormat === "chirp" ? "CHIRP" : "CPS";
+    formatEl.textContent = profil.csvFormat === "chirp" ? "CHIRP"
+      : profil.csvFormat === "opengd77" ? "OpenGD77"
+      : "CPS";
     formatEl.className = "device-info-format format-" + profil.csvFormat;
   }
 
