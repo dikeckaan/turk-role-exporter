@@ -350,7 +350,7 @@ function dinleyicileriKur() {
     });
   });
 
-  ["opsiyon-airband", "opsiyon-marine"].forEach((id) => {
+  ["opsiyon-airband", "opsiyon-marine", "opsiyon-pmr", "opsiyon-dpmr"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", (e) => {
       if (e.target.checked && !state.authToken) {
         e.target.checked = false;
@@ -366,6 +366,12 @@ function dinleyicileriKur() {
   });
   document.getElementById("marine-overlay")?.addEventListener("click", () => {
     sifreModaliGoster("opsiyon-marine");
+  });
+  document.getElementById("pmr-overlay")?.addEventListener("click", () => {
+    sifreModaliGoster("opsiyon-pmr");
+  });
+  document.getElementById("dpmr-overlay")?.addEventListener("click", () => {
+    sifreModaliGoster("opsiyon-dpmr");
   });
 
   document.getElementById("sifre-modal-kapat")?.addEventListener("click", sifreModaliKapat);

@@ -60,12 +60,21 @@ export async function sifreOnayla() {
 }
 
 export function korunanlariGuncelle(unlocked) {
+  const groups = [
+    "opsiyon-airband-group",
+    "opsiyon-marine-group",
+    "opsiyon-pmr-group",
+    "opsiyon-dpmr-group",
+  ];
+  for (const gid of groups) {
+    const g = document.getElementById(gid);
+    if (!g) continue;
+    const overlay = g.querySelector(".protected-overlay");
+    if (overlay) overlay.style.display = unlocked ? "none" : "";
+  }
+  // Airband/marine also have a separate "unlocked" label that replaces the overlay.
   for (const prefix of ["airband", "marine"]) {
-    const overlay = document.getElementById(`${prefix}-overlay`);
     const label = document.getElementById(`${prefix}-unlocked`);
-    if (overlay && label) {
-      overlay.style.display = unlocked ? "none" : "flex";
-      label.style.display = unlocked ? "" : "none";
-    }
+    if (label) label.style.display = unlocked ? "" : "none";
   }
 }

@@ -193,7 +193,17 @@
     <div class="section">
       <div class="section-title">Kanal Opsiyonlari</div>
       <div class="filters-grid">
-        <div class="filter-group">
+        <div class="filter-group protected-group" id="opsiyon-pmr-group">
+          <div class="protected-overlay" id="pmr-overlay">
+            <div class="protected-lock-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <span class="protected-label-text">Sifre Korumali Kanallar 3</span>
+            <span class="protected-badge">Sifre Gerekli</span>
+          </div>
           <label>
             <input type="checkbox" id="opsiyon-pmr" class="toggle">
             PMR Kanallari Ekle
@@ -203,7 +213,17 @@
             RX Only
           </label>
         </div>
-        <div class="filter-group" id="opsiyon-dpmr-group">
+        <div class="filter-group protected-group" id="opsiyon-dpmr-group">
+          <div class="protected-overlay" id="dpmr-overlay">
+            <div class="protected-lock-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <span class="protected-label-text">Sifre Korumali Kanallar 4</span>
+            <span class="protected-badge">Sifre Gerekli</span>
+          </div>
           <label>
             <input type="checkbox" id="opsiyon-dpmr" class="toggle">
             dPMR Kanallari Ekle
