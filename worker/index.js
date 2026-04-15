@@ -205,14 +205,19 @@ async function handleProtectedDataset(request, env, cacheKey, upstreamUrl, parse
   if (cached) return cached;
 
   let body;
+  let liveSucceeded = false;
   try {
     const resp = await fetch(upstreamUrl, {
       signal: AbortSignal.timeout(10000),
       headers: { "User-Agent": "Mozilla/5.0 TurkRoleExporter" },
     });
-    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    if (!resp.ok) {
+      await resp.body?.cancel();
+      throw new Error("HTTP " + resp.status);
+    }
     const parsed = parser(await resp.text());
     body = { ...parsed, kaynak: "live", guncellenme: new Date().toISOString() };
+    liveSucceeded = true;
   } catch (err) {
     console.warn(`[${cacheKey}] live fetch failed, fallback:`, err.message);
     body = fallback;
@@ -220,7 +225,9 @@ async function handleProtectedDataset(request, env, cacheKey, upstreamUrl, parse
 
   const response = jsonResponse(body);
   response.headers.set("Cache-Control", "public, max-age=14400");
-  await cache.put(cacheReq, response.clone());
+  if (liveSucceeded) {
+    await cache.put(cacheReq, response.clone());
+  }
   return response;
 }
 
