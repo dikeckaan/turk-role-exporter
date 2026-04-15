@@ -13,6 +13,8 @@ export const state = {
   authToken: sessionStorage.getItem("authToken") || null,
   airbandData: null,
   marineData: null,
+  airbandSecim: { iller: [], havalimanlari: {} },
+  marineSecim: { vhf: [], sar: [], sahil: [] },
 
   duzenlenmisRoleler: [],
   csvBasliklar: [],

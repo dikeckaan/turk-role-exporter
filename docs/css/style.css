@@ -1319,3 +1319,15 @@ input[type="number"]:focus {
   color: var(--error);
 }
 
+/* Airband cascade picker */
+.airband-il-wrap, .airband-tur-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; align-items: center; }
+.airband-panel-label { font-weight: 600; margin-right: 4px; }
+.airband-hav-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
+.airband-hav-row:last-child { border-bottom: none; }
+.airband-hav-title { font-weight: 600; margin-bottom: 4px; color: var(--text); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px;
+        background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+        font-size: 0.85rem; cursor: pointer; color: var(--text); }
+.chip input { margin: 0; }
+.chip:hover { border-color: var(--accent); }
+.protected-panel { margin-top: 12px; }
