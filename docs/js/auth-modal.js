@@ -72,8 +72,8 @@ export function korunanlariGuncelle(unlocked) {
     const overlay = g.querySelector(".protected-overlay");
     if (overlay) overlay.style.display = unlocked ? "none" : "";
   }
-  // Airband/marine also have a separate "unlocked" label that replaces the overlay.
-  for (const prefix of ["airband", "marine"]) {
+  // All four protected groups have a separate "unlocked" wrapper that replaces the overlay.
+  for (const prefix of ["airband", "marine", "pmr", "dpmr"]) {
     const label = document.getElementById(`${prefix}-unlocked`);
     if (label) label.style.display = unlocked ? "" : "none";
   }

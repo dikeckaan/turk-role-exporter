@@ -24,3 +24,15 @@ describe("auth-modal unlock coverage", () => {
     }
   });
 });
+
+describe("protected group inner content wrapped", () => {
+  const html = readFileSync(new URL("../docs/index.html", import.meta.url), "utf8");
+  it("pmr, dpmr, airband, marine each have an *-unlocked wrapper defaulting to hidden", () => {
+    for (const name of ["airband", "marine", "pmr", "dpmr"]) {
+      const id = `${name}-unlocked`;
+      assert.ok(html.includes(`id="${id}"`), `${id} wrapper missing`);
+      const re = new RegExp(`id="${id}"[^>]*style="[^"]*display\\s*:\\s*none`);
+      assert.ok(re.test(html), `${id} wrapper should default to display:none`);
+    }
+  });
+});
