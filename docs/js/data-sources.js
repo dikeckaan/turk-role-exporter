@@ -100,10 +100,6 @@ export async function amatortelsizcilikYukle() {
       : `✓ ${data.length} role yuklendi`;
     kaynakDurumGuncelle("amatortelsizcilik", "basarili", msg);
     cacheBilgisiGuncelle();
-
-    if (fallback) {
-      bannerGoster("warning", "API hatasi — fallback surum kullaniliyor.");
-    }
     return true;
   } catch {
     kaynakDurumGuncelle("amatortelsizcilik", "hata", "✕ Baglanti hatasi");
