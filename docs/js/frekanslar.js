@@ -445,11 +445,11 @@ export function ekKanalSayisi(opsiyonlar) {
   if (opsiyonlar.fmRadyoEkle && opsiyonlar.fmSehirler?.length > 0) {
     toplam += fmIstasyonlariGetir(opsiyonlar.fmSehirler).length;
   }
-  if (opsiyonlar.airbandEkle && opsiyonlar.airbandData) {
-    toplam += opsiyonlar.airbandData.length;
+  if (opsiyonlar.airbandEkle && opsiyonlar.airbandSecili) {
+    toplam += opsiyonlar.airbandSecili.length;
   }
-  if (opsiyonlar.marineEkle && opsiyonlar.marineData) {
-    toplam += opsiyonlar.marineData.length;
+  if (opsiyonlar.marineEkle && opsiyonlar.marineSecili) {
+    toplam += opsiyonlar.marineSecili.length;
   }
   if (opsiyonlar.simplexEkle) {
     toplam += DIGITAL_SIMPLEX.uhf.length + DIGITAL_SIMPLEX.vhf.length;
@@ -469,11 +469,11 @@ export function kanalDagilimi(roleCount, opsiyonlar) {
     const n = fmIstasyonlariGetir(opsiyonlar.fmSehirler).length;
     items.push({ ad: "FM Radyo", sayi: n });
   }
-  if (opsiyonlar.airbandEkle && opsiyonlar.airbandData) {
-    items.push({ ad: "Havacilik", sayi: opsiyonlar.airbandData.length });
+  if (opsiyonlar.airbandEkle && opsiyonlar.airbandSecili) {
+    items.push({ ad: "Havacilik", sayi: opsiyonlar.airbandSecili.length });
   }
-  if (opsiyonlar.marineEkle && opsiyonlar.marineData) {
-    items.push({ ad: "Denizcilik", sayi: opsiyonlar.marineData.length });
+  if (opsiyonlar.marineEkle && opsiyonlar.marineSecili) {
+    items.push({ ad: "Denizcilik", sayi: opsiyonlar.marineSecili.length });
   }
   if (opsiyonlar.simplexEkle) {
     items.push({
