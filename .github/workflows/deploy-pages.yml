@@ -2,7 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: [main, feature/cf-worker-full-site]
+    branches: ['**']
   workflow_dispatch:
 
 permissions:

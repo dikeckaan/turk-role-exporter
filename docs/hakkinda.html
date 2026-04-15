@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hakkinda — Turk Role Exporter</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .doc-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .doc-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .doc-nav a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .doc-nav a:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+    .markdown-body {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3 {
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-top: 32px;
+      margin-bottom: 16px;
+    }
+    .markdown-body h1 { font-size: 2em; margin-top: 0; }
+    .markdown-body h2 { font-size: 1.5em; }
+    .markdown-body h3 { font-size: 1.2em; border-bottom: none; }
+    .markdown-body a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .markdown-body a:hover { text-decoration: underline; }
+    .markdown-body code {
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    .markdown-body pre {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+    }
+    .markdown-body pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.85em;
+      line-height: 1.5;
+    }
+    .markdown-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 16px 0;
+      display: block;
+      overflow-x: auto;
+    }
+    .markdown-body th,
+    .markdown-body td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+    .markdown-body th {
+      background: var(--surface-2);
+      font-weight: 600;
+    }
+    .markdown-body ul, .markdown-body ol {
+      padding-left: 24px;
+    }
+    .markdown-body li { margin: 4px 0; }
+    .markdown-body blockquote {
+      border-left: 4px solid var(--accent);
+      padding: 8px 16px;
+      margin: 16px 0;
+      color: var(--text-muted);
+      background: var(--surface-2);
+      border-radius: 0 8px 8px 0;
+    }
+    .markdown-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+    @media (max-width: 600px) {
+      .doc-wrap { padding: 12px; }
+      .markdown-body { padding: 18px; }
+      .markdown-body h1 { font-size: 1.5em; }
+      .markdown-body h2 { font-size: 1.25em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-wrap">
+    <div class="doc-nav">
+      <a href="index.html">← Uygulamaya Don</a>
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Tema degistir">
+        <span id="theme-icon">☀️</span> <span id="theme-label">Acik Tema</span>
+      </button>
+    </div>
+    <article class="markdown-body">
+<h1>Türk Röle Exporter</h1>
+<p>Türkiye amatör telsiz röle verilerini cihazına özel CSV formatına dönüştüren web uygulaması. Filtrele, harita üzerinde gör, telsizine yükle.</p>
+<h2>İçindekiler</h2>
+<ul>
+<li><a href="#ne-i%C5%9Fe-yarar">Ne işe yarar?</a></li>
+<li><a href="#canl%C4%B1-versiyon">Canlı versiyon</a></li>
+<li><a href="#veri-kaynaklar%C4%B1">Veri kaynakları</a></li>
+<li><a href="#mimari">Mimari</a></li>
+<li><a href="#proje-yap%C4%B1s%C4%B1">Proje yapısı</a></li>
+<li><a href="#geli%C5%9Ftirme">Geliştirme</a></li>
+<li><a href="#fallback-verisini-g%C3%BCncelleme">Fallback verisini güncelleme</a></li>
+<li><a href="#deploy">Deploy</a></li>
+<li><a href="#test">Test</a></li>
+<li><a href="#lisans-ve-katk%C4%B1">Lisans ve katkı</a></li>
+</ul>
+<h2>Ne işe yarar?</h2>
+<p>CHIRP / üretici CPS yazılımıyla uyumlu CSV üretir. Şu cihazlar için hazır profil var:</p>
+<ul>
+<li><strong>Quansheng UV-K5</strong> (F4HWN v4.3 firmware)</li>
+<li><strong>Baofeng K5 Plus</strong></li>
+<li><strong>OpenGD77</strong> (Radioddity GD-77, TYT MD-380, Baofeng DM-1801, Radioddity RD-5R)</li>
+<li><strong>TYT MD-UV390 Plus</strong></li>
+</ul>
+<p>Özellikler:</p>
+<ul>
+<li>TA bölgesi, şehir, ilçe, bant (VHF/UHF), mod (analog/dijital), aktiflik, lisans, QRZ skoruna göre filtre</li>
+<li>Ek kanallar: PMR, dPMR, FM Radyo, dijital simplex</li>
+<li>Parola korumalı Air Band ve Marine Band frekans seti</li>
+<li>Leaflet harita, sürüklenebilir röle pin&#39;leri</li>
+<li>Önizleme tablosu, undo/redo, arama</li>
+<li>Önayar (preset) kaydetme/yükleme</li>
+<li>Koyu mod</li>
+<li>Mevcut CSV&#39;yi içe aktarıp birleştirme</li>
+<li>RX-only mod, boş kanal eklenmesi, güç seviyesi ve kanal adı şablonu özelleştirme</li>
+</ul>
+<h2>Canlı versiyon</h2>
+<p>Statik site <code>docs/</code> klasöründen GitHub Pages üzerinden yayınlanır. Repo: <a href="https://github.com/dikeckaan/turk-role-exporter"><code>dikeckaan/turk-role-exporter</code></a>.</p>
+<p>API trafiği <code>https://telsizrole.kaandikec.com</code> adresindeki Cloudflare Worker&#39;a gider.</p>
+<h2>Veri kaynakları</h2>
+<table>
+<thead>
+<tr>
+<th>Kaynak</th>
+<th>Açıklama</th>
+<th>Cache</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>amatortelsizcilik.com.tr/roleler/data.json</code></td>
+<td>Birincil JSON API. <strong>Şu an upstream login arkasında</strong>, anonim erişim 500 dönüyor. Bu yüzden site fallback&#39;e düşüyor — aşağıdaki bölüme bakın.</td>
+<td>4 saat</td>
+</tr>
+<tr>
+<td><code>ta-role.com</code></td>
+<td>İkincil. CF Worker subrequest limitine uymak için 5 paralel parça (<code>vhf1</code>, <code>vhf2</code>, <code>uhf1</code>, <code>uhf2</code>, <code>dmr</code>) halinde HTML scrape edilir. Talkgrup ve dijital simplex listelerini de buradan çeker.</td>
+<td>4 saat</td>
+</tr>
+<tr>
+<td><code>docs/js/fallback-data.js</code></td>
+<td>Gömülü yedek. <code>npm run update-fallback</code> ile yenilenir. ~507 röle.</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<h2>Mimari</h2>
+<pre><code>                       ┌─────────────────────────────────────┐
+                       │           Tarayıcı                  │
+                       │   docs/ (vanilla ES modules)        │
+                       └────────────────┬────────────────────┘
+                                        │ fetch
+                                        ▼
+                       ┌─────────────────────────────────────┐
+                       │   Cloudflare Worker                 │
+                       │   telsizrole.kaandikec.com          │
+                       │   worker/index.js                   │
+                       └─────────┬──────────────┬────────────┘
+                                 │              │
+                                 ▼              ▼
+              amatortelsizcilik.com.tr     ta-role.com
+              (4h cache, login arkasında)  (4h cache, 5 part scrape)
+</code></pre>
+<p><strong>Frontend</strong> (<code>docs/</code>) — vanilla ES modules, statik. Anahtar dosyalar:</p>
+<ul>
+<li><code>docs/index.html</code> — UI</li>
+<li><code>docs/js/app.js</code> — modülleri bağlayan ana orkestratör</li>
+<li><code>docs/js/api.js</code> — worker&#39;a istek + fallback</li>
+<li><code>docs/js/cihazlar.js</code> — cihaz profilleri (sütunlar, güç, varsayılanlar)</li>
+<li><code>docs/js/csv.js</code> — CSV serileştirme</li>
+<li><code>docs/js/data-sources.js</code> — kaynak birleştirme + TA bölge eşleme (<code>SEHIR_TABOLGE</code>)</li>
+<li><code>docs/js/filtreler.js</code>, <code>filter-ui.js</code> — filtre mantığı + UI</li>
+<li><code>docs/js/harita.js</code> — Leaflet harita</li>
+<li><code>docs/js/tablo.js</code> — önizleme tablosu</li>
+<li><code>docs/js/auth-modal.js</code> — Air/Marine için parola modal&#39;ı</li>
+<li><code>docs/js/fallback-data.js</code> — gömülü yedek (otomatik üretilir, elle düzenleme)</li>
+</ul>
+<p><strong>Backend</strong> (<code>worker/index.js</code>) — Cloudflare Worker. Endpoint listesi:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Açıklama</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/roleler</code></td>
+<td>amatortelsizcilik.com.tr proxy</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/tarole/roleler?part={vhf1|vhf2|uhf1|uhf2|dmr}</code></td>
+<td>ta-role scraper</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/tarole/talkgruplar</code></td>
+<td>DMR talk grupları</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/tarole/simplex</code></td>
+<td>Dijital simplex frekansları</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/tarole/debug</code></td>
+<td>Tanı bilgisi (cache yok)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/auth/verify</code></td>
+<td>HMAC parola → saatlik token</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/protected/airband</code></td>
+<td>Bearer token gerekir</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/protected/marine</code></td>
+<td>Bearer token gerekir</td>
+</tr>
+</tbody></table>
+<h2>Proje yapısı</h2>
+<pre><code>.
+├── docs/                    # Statik frontend (GitHub Pages&#39;e deploy edilir)
+│   ├── index.html
+│   ├── css/style.css
+│   └── js/                  # ES modules
+├── worker/
+│   └── index.js             # Cloudflare Worker
+├── scripts/
+│   └── update-fallback.js   # backup.json → fallback-data.js
+├── tests/                   # node --test
+├── plans/                   # geliştirme planları (referans)
+├── backup.json              # (opsiyonel) en son data.json snapshot&#39;ı
+├── wrangler.toml
+└── package.json
+</code></pre>
+<h2>Geliştirme</h2>
+<p><strong>Gereksinimler:</strong> Node.js 20+, npm, <a href="https://developers.cloudflare.com/workers/wrangler/install-and-update/">Wrangler CLI</a> (<code>npm i -g wrangler</code> veya devDependency olarak).</p>
+<p><strong>Kurulum:</strong></p>
+<pre><code class="language-bash">npm install
+</code></pre>
+<p>Air Band / Marine Band parolasını yerelde test etmek için repo köküne <code>.dev.vars</code> dosyası oluştur:</p>
+<pre><code>PROTECTED_PASSWORD=secret-değerin
+</code></pre>
+<p><strong>Komutlar:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Komut</th>
+<th>Açıklama</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>npm run dev</code></td>
+<td><code>wrangler dev</code> — worker + statik site (varsayılan: <a href="http://localhost:8787">http://localhost:8787</a>)</td>
+</tr>
+<tr>
+<td><code>npm run lint</code></td>
+<td>ESLint — <code>docs/js/</code> ve <code>worker/</code></td>
+</tr>
+<tr>
+<td><code>npm run format</code></td>
+<td>Prettier — <code>docs/js/</code>, <code>worker/</code>, <code>docs/css/</code></td>
+</tr>
+<tr>
+<td><code>npm test</code></td>
+<td><code>node --test tests/*.test.js</code></td>
+</tr>
+<tr>
+<td><code>npm run update-fallback</code></td>
+<td><code>backup.json</code> → <code>docs/js/fallback-data.js</code></td>
+</tr>
+<tr>
+<td><code>npm run deploy</code></td>
+<td><code>wrangler deploy</code> — worker&#39;ı production&#39;a gönderir</td>
+</tr>
+</tbody></table>
+<h2>Fallback verisini güncelleme</h2>
+<p>amatortelsizcilik.com.tr <code>/roleler/data.json</code> endpoint&#39;i artık login gerektiriyor; CF Worker anonim olarak 500 alıyor. Bu nedenle birincil veri şu an gömülü <code>fallback-data.js</code>&#39;ten geliyor ve <strong>elle yenilenmesi gerek</strong>.</p>
+<p>Workflow:</p>
+<ol>
+<li><p>Tarayıcıda amatortelsizcilik.com.tr&#39;ye giriş yap</p>
+</li>
+<li><p><code>https://amatortelsizcilik.com.tr/roleler/data.json</code> URL&#39;sini aç → JSON çıktısını <strong>olduğu gibi</strong> kaydet</p>
+</li>
+<li><p>Repo köküne <code>backup.json</code> olarak yapıştır (mevcut dosyanın üzerine yaz)</p>
+</li>
+<li><p>Yenile:</p>
+<pre><code class="language-bash">npm run update-fallback
+</code></pre>
+</li>
+<li><p>Üretilen <code>docs/js/fallback-data.js</code>&#39;i commit&#39;le</p>
+</li>
+</ol>
+<p><code>backup.json</code> formatı, upstream <code>data.json</code>&#39;ın birebir kendisi: röle objelerinden oluşan bir JSON array. Script (<code>scripts/update-fallback.js</code>) sayıyı doğrular, ESM export&#39;a sarar, üst satırına tarih damgası koyar.</p>
+<h2>Deploy</h2>
+<p><strong>Frontend:</strong> <code>main</code> veya <code>feature/cf-worker-full-site</code> branch&#39;ine push → GitHub Actions (<code>.github/workflows/deploy-pages.yml</code>) otomatik olarak <code>docs/</code>&#39;u GitHub Pages&#39;e deploy eder. Manuel tetiklemek için <code>workflow_dispatch</code> kullanılabilir.</p>
+<p><strong>Worker:</strong></p>
+<pre><code class="language-bash">npm run deploy
+</code></pre>
+<p>Production parola sırrını ayarlamak için:</p>
+<pre><code class="language-bash">wrangler secret put PROTECTED_PASSWORD
+</code></pre>
+<p>CI/CD ortamında ise GitHub repository secret&#39;ı olarak <code>PROTECTED_PASSWORD</code> tanımlanır ve deploy workflow&#39;unda env&#39;e geçirilir.</p>
+<h2>Test</h2>
+<p>Birim testler <code>tests/</code> altında, Node&#39;un yerleşik test runner&#39;ı ile:</p>
+<pre><code class="language-bash">npm test
+</code></pre>
+<p>Mevcut suite&#39;ler:</p>
+<ul>
+<li><code>tests/csv.test.js</code> — CSV format/serileştirme</li>
+<li><code>tests/filtreler.test.js</code> — filtre mantığı</li>
+<li><code>tests/utils.test.js</code> — yardımcılar (Türkçe normalizasyon, bant tespiti)</li>
+</ul>
+<h2>Lisans ve katkı</h2>
+<p>Repo&#39;da <code>LICENSE</code> dosyası yok; lisans henüz belirtilmemiştir.</p>
+<p>Katkı vermek için:</p>
+<ol>
+<li>Branch aç</li>
+<li>Değişikliklerini yap</li>
+<li><code>npm run lint &amp;&amp; npm test</code> geçtiğinden emin ol</li>
+<li>PR aç</li>
+</ol>
+
+    </article>
+  </div>
+  <script type="module">
+    import { themeBaslat } from "./js/theme.js";
+    themeBaslat();
+  </script>
+</body>
+</html>
