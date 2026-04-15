@@ -38,6 +38,7 @@ import { haritaBaslat, pinleriGuncelle, sehirSeciminiSenkronla } from "./harita.
 import { isDijital, sehirPlaka } from "./utils.js";
 import { airbandGetir, marineGetir } from "./api.js";
 import { airbandUiKur } from "./airband-ui.js";
+import { marineUiKur } from "./marine-ui.js";
 import { themeBaslat } from "./theme.js";
 import { presetUiKur } from "./presets.js";
 import { undoUiKur, undoKaydet, undoTemizle } from "./undo.js";
@@ -126,6 +127,7 @@ async function basla() {
       state.marineData = mb;
       korunanlariGuncelle(true);
       if (state.airbandData) airbandUiKur();
+      if (state.marineData) marineUiKur();
     } catch {
       state.authToken = null;
       sessionStorage.removeItem("authToken");
@@ -361,6 +363,10 @@ function dinleyicileriKur() {
       }
       if (id === "opsiyon-airband") {
         const p = document.getElementById("airband-panel");
+        if (p) p.style.display = e.target.checked ? "" : "none";
+      }
+      if (id === "opsiyon-marine") {
+        const p = document.getElementById("marine-panel");
         if (p) p.style.display = e.target.checked ? "" : "none";
       }
       document.dispatchEvent(new CustomEvent("filtre-degisti"));

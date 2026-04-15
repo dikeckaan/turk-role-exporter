@@ -1331,3 +1331,18 @@ input[type="number"]:focus {
 .chip input { margin: 0; }
 .chip:hover { border-color: var(--accent); }
 .protected-panel { margin-top: 12px; }
+
+/* Marine accordion picker */
+.marine-bolum { margin: 8px 0; border: 1px solid var(--border); border-radius: 8px;
+                padding: 8px; background: var(--surface-2); }
+.marine-bolum[open] { background: var(--surface); }
+.marine-bolum-sum { cursor: pointer; font-weight: 600; display: flex;
+                    justify-content: space-between; padding: 4px 0; color: var(--text); }
+.marine-count { color: var(--text-muted); font-weight: 400; font-size: 0.85rem; }
+.marine-toggle-all { background: none; border: 1px solid var(--border);
+                     color: var(--text-muted); padding: 2px 8px; margin: 6px 0;
+                     border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+.marine-toggle-all:hover { color: var(--text); border-color: var(--accent); }
+.marine-row { display: flex; align-items: center; gap: 6px; padding: 4px 0;
+              font-size: 0.9rem; color: var(--text); cursor: pointer; }
+.marine-row:hover { background: var(--surface-2); }
