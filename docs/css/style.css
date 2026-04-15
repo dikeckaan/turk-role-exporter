@@ -3,8 +3,22 @@
    Turkish Amateur Radio Repeater Exporter Web App
    ============================================================ */
 
-/* ── CSS Variables ───────────────────────────────────────── */
+/* ── CSS Variables — Pure Dark (default) ─────────────────── */
 :root {
+  --bg:          #0a0a0a;
+  --surface:     #141414;
+  --surface-2:   #1c1c1c;
+  --accent:      #e94560;
+  --text:        #f5f5f5;
+  --text-muted:  #888;
+  --success:     #4ecca3;
+  --warning:     #f0a500;
+  --error:       #e94560;
+  --border:      #262626;
+}
+
+/* ── Navy Dark ───────────────────────────────────────────── */
+[data-theme="dark-navy"] {
   --bg:          #1a1a2e;
   --surface:     #16213e;
   --surface-2:   #0f3460;
@@ -15,6 +29,59 @@
   --warning:     #f0a500;
   --error:       #e94560;
   --border:      #2a2a4a;
+}
+
+/* ── Kömür Dark ──────────────────────────────────────────── */
+[data-theme="dark-charcoal"] {
+  --bg:          #15151a;
+  --surface:     #1f1f27;
+  --surface-2:   #2a2a33;
+  --accent:      #e94560;
+  --text:        #e8e8e8;
+  --text-muted:  #9090a0;
+  --success:     #4ecca3;
+  --warning:     #f0a500;
+  --error:       #e94560;
+  --border:      #33333d;
+}
+
+/* ── Light ───────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:          #f0f2f5;
+  --surface:     #ffffff;
+  --surface-2:   #e8ecf1;
+  --accent:      #d63031;
+  --text:        #2d3436;
+  --text-muted:  #636e72;
+  --success:     #00b894;
+  --warning:     #e17055;
+  --error:       #d63031;
+  --border:      #dfe6e9;
+}
+
+[data-theme="light"] .device-info-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e8ecf1 100%);
+  border-color: var(--border);
+}
+
+[data-theme="light"] .leaflet-popup-content-wrapper {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] .il-tooltip {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #b2bec3;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #636e72;
 }
 
 /* ── Focus Visible ───────────────────────────────────────── */
@@ -55,6 +122,89 @@ input:focus-visible {
   border-color: var(--accent);
   color: #fff;
   transform: translateY(-1px);
+}
+
+/* ── Theme FAB + Popover Menu ────────────────────────────── */
+.theme-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+  z-index: 1000;
+}
+
+.theme-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+.theme-fab:active {
+  transform: scale(0.96);
+}
+
+.theme-menu {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  min-width: 200px;
+  max-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 1000;
+}
+
+.theme-menu[hidden] {
+  display: none;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.theme-option:hover {
+  background: var(--surface-2);
+}
+
+.theme-option.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.theme-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 /* ── Reset & Body ────────────────────────────────────────── */
