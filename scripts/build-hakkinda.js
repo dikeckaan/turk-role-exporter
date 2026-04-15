@@ -36,25 +36,26 @@ const page = `<!DOCTYPE html>
       padding: 24px;
     }
     .doc-nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
       margin-bottom: 24px;
-      flex-wrap: wrap;
     }
     .doc-nav a {
-      color: var(--accent);
+      color: var(--text-muted);
       text-decoration: none;
-      font-weight: 600;
-      padding: 8px 14px;
+      font-weight: 500;
+      padding: 8px 16px;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
-      transition: background 0.15s, color 0.15s;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
     }
     .doc-nav a:hover {
       background: var(--accent);
+      border-color: var(--accent);
       color: #fff;
+      transform: translateY(-1px);
     }
     .markdown-body {
       background: var(--surface);
@@ -148,18 +149,11 @@ const page = `<!DOCTYPE html>
   <div class="doc-wrap">
     <div class="doc-nav">
       <a href="index.html">← Uygulamaya Don</a>
-      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Tema degistir">
-        <span id="theme-icon">☀️</span> <span id="theme-label">Acik Tema</span>
-      </button>
     </div>
     <article class="markdown-body">
 ${html}
     </article>
   </div>
-  <script type="module">
-    import { themeBaslat } from "./js/theme.js";
-    themeBaslat();
-  </script>
 </body>
 </html>
 `;

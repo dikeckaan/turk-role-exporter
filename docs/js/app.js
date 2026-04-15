@@ -37,15 +37,12 @@ import { csvTabloGuncelle } from "./tablo.js";
 import { haritaBaslat, pinleriGuncelle, sehirSeciminiSenkronla } from "./harita.js";
 import { isDijital, sehirPlaka } from "./utils.js";
 import { airbandGetir, marineGetir } from "./api.js";
-import { themeBaslat } from "./theme.js";
 import { presetUiKur } from "./presets.js";
 import { undoUiKur, undoKaydet, undoTemizle } from "./undo.js";
 
 // ─── Boot ─────────────────────────────────────────────────
 
 async function basla() {
-  themeBaslat();
-
   // Register service worker for offline support
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});

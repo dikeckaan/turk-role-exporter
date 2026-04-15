@@ -17,64 +17,6 @@
   --border:      #2a2a4a;
 }
 
-/* ── Light Theme ────────────────────────────────────────── */
-[data-theme="light"] {
-  --bg:          #f0f2f5;
-  --surface:     #ffffff;
-  --surface-2:   #e8ecf1;
-  --accent:      #d63031;
-  --text:        #2d3436;
-  --text-muted:  #636e72;
-  --success:     #00b894;
-  --warning:     #e17055;
-  --error:       #d63031;
-  --border:      #dfe6e9;
-}
-
-[data-theme="light"] .device-info-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e8ecf1 100%);
-  border-color: var(--border);
-}
-
-[data-theme="light"] .leaflet-popup-content-wrapper {
-  background: var(--surface) !important;
-  color: var(--text) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-[data-theme="light"] .il-tooltip {
-  background: var(--surface) !important;
-  color: var(--text) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: #b2bec3;
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: #636e72;
-}
-
-/* ── Skip Link (Accessibility) ───────────────────────────── */
-.skip-link {
-  position: absolute;
-  top: -100%;
-  left: 16px;
-  z-index: 99999;
-  background: var(--accent);
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 0 0 6px 6px;
-  font-size: 0.9rem;
-  text-decoration: none;
-  transition: top 0.2s;
-}
-
-.skip-link:focus {
-  top: 0;
-}
-
 /* ── Focus Visible ───────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -88,49 +30,31 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
-/* ── Theme Toggle ────────────────────────────────────────── */
-.theme-toggle {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 6px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: border-color 0.2s, color 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.theme-toggle:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.header-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
+/* ── Header Link (Hakkinda pill) ─────────────────────────── */
 .header-link {
-  background: none;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-muted);
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 500;
   text-decoration: none;
-  transition: border-color 0.2s, color 0.2s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
   display: inline-flex;
   align-items: center;
   line-height: 1;
+  z-index: 10;
 }
 
 .header-link:hover {
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--text);
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 /* ── Reset & Body ────────────────────────────────────────── */
@@ -160,6 +84,7 @@ body {
 .header {
   text-align: center;
   padding: 20px;
+  position: relative;
 }
 
 .header h1 {
