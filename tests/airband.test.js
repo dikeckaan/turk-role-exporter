@@ -38,3 +38,18 @@ describe("secilenAirbandFrekanslari", () => {
     }
   });
 });
+
+describe("secilenAirbandFrekanslari dedup", () => {
+  it("deduplicates by icao+tur+frek across duplicate il entries", () => {
+    const dup = {
+      kaynak: "fallback",
+      iller: [
+        { il: "A", havalimanlari: [{ ad: "X", icao: "LTXX", frekanslar: [{tur:"Tower", frek:"118.1"}] }] },
+        { il: "B", havalimanlari: [{ ad: "X", icao: "LTXX", frekanslar: [{tur:"Tower", frek:"118.1"}] }] },
+      ],
+    };
+    const result = secilenAirbandFrekanslari(dup,
+      { iller: ["A", "B"], havalimanlari: { LTXX: ["Tower"] } });
+    assert.equal(result.length, 1);
+  });
+});

@@ -33,7 +33,15 @@ export function secilenAirbandFrekanslari(dataset, secim) {
       }
     }
   }
-  return out;
+  const seen = new Set();
+  const dedup = [];
+  for (const item of out) {
+    const key = `${item.icao}::${item.tur}::${item.frek}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    dedup.push(item);
+  }
+  return dedup;
 }
 
 function clearChildren(node) {
