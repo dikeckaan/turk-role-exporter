@@ -18,6 +18,8 @@
 
 import { getAssetFromKV } from "@cloudflare/kv-asset-handler";
 import manifestJSON from "__STATIC_CONTENT_MANIFEST";
+import { AIRBAND_FALLBACK, MARINE_FALLBACK } from "./fallback-data.js";
+import { parseAirbandHtml, parseMarineHtml } from "./scrapers.js";
 
 const assetManifest = JSON.parse(manifestJSON);
 
@@ -78,52 +80,16 @@ export default {
       case "/api/auth/verify":
         return handleAuthVerify(request, env);
       case "/api/protected/airband":
-        return handleProtected(request, env, AIRBAND_FREKANSLARI);
+        return handleProtectedDataset(request, env, "airband",
+          "https://skyvector.com/airports/Turkey", parseAirbandHtml, AIRBAND_FALLBACK);
       case "/api/protected/marine":
-        return handleProtected(request, env, MARINE_FREKANSLARI);
+        return handleProtectedDataset(request, env, "marine",
+          "https://www.qsl.net/ta1dx/amator/bandmarine.htm", parseMarineHtml, MARINE_FALLBACK);
       default:
         return jsonResponse({ hata: "Bulunamadi" }, 404);
     }
   },
 };
-
-// ─── Frequency data (protected) ──────────────────────────────────────────────
-
-const AIRBAND_FREKANSLARI = [
-  { frek: 121.500, ad: "ACIL GUARD", aciklama: "Uluslararasi Havacilik Acil Frekansi" },
-  { frek: 126.350, ad: "IST ATIS1", aciklama: "Istanbul Havalimanı ATIS" },
-  { frek: 128.850, ad: "IST ATIS2", aciklama: "Istanbul Havalimanı ATIS 2" },
-  { frek: 131.100, ad: "IST TWR", aciklama: "Istanbul Havalimanı Tower" },
-  { frek: 121.750, ad: "IST GND", aciklama: "Istanbul Havalimanı Ground" },
-  { frek: 128.550, ad: "SAW ATIS", aciklama: "Sabiha Gokcen ATIS" },
-  { frek: 118.100, ad: "SAW TWR", aciklama: "Sabiha Gokcen Tower" },
-  { frek: 121.800, ad: "SAW GND", aciklama: "Sabiha Gokcen Ground" },
-  { frek: 123.600, ad: "ESB ATIS", aciklama: "Esenboga ATIS" },
-  { frek: 118.100, ad: "ESB TWR", aciklama: "Esenboga Tower" },
-  { frek: 121.900, ad: "ESB GND", aciklama: "Esenboga Ground" },
-  { frek: 129.200, ad: "ADB ATIS", aciklama: "Adnan Menderes ATIS" },
-  { frek: 118.100, ad: "ADB TWR", aciklama: "Adnan Menderes Tower" },
-  { frek: 121.700, ad: "ADB GND", aciklama: "Adnan Menderes Ground" },
-  { frek: 128.200, ad: "AYT ATIS", aciklama: "Antalya ATIS" },
-  { frek: 118.100, ad: "AYT TWR", aciklama: "Antalya Tower" },
-];
-
-const MARINE_FREKANSLARI = [
-  { frek: 156.800, ad: "CH16 ACIL", kanal: 16, aciklama: "Uluslararasi Deniz Acil/Cagri" },
-  { frek: 156.525, ad: "CH70 DSC", kanal: 70, aciklama: "Digital Selective Calling" },
-  { frek: 156.300, ad: "CH06 INTSH", kanal: 6, aciklama: "Gemiler Arasi Guvenlik" },
-  { frek: 156.650, ad: "CH13 BRIJ", kanal: 13, aciklama: "Kopru-Kopru Navigasyon" },
-  { frek: 156.400, ad: "CH08 WORK", kanal: 8, aciklama: "Sahil Guvenlik / Calisma" },
-  { frek: 156.475, ad: "CH69 SHIP", kanal: 69, aciklama: "Gemiler Arasi" },
-  { frek: 156.625, ad: "CH72 SHIP", kanal: 72, aciklama: "Gemiler Arasi" },
-  { frek: 156.875, ad: "CH77 SHIP", kanal: 77, aciklama: "Gemiler Arasi" },
-  { frek: 156.500, ad: "CH10 VTS", kanal: 10, aciklama: "Turk Bogazi VTS Sektoru" },
-  { frek: 156.550, ad: "CH11 VTS", kanal: 11, aciklama: "Turk Bogazi VTS / Kilavuz" },
-  { frek: 156.600, ad: "CH12 VTS", kanal: 12, aciklama: "Turk Bogazi VTS Sektoru" },
-  { frek: 156.700, ad: "CH14 VTS", kanal: 14, aciklama: "Turk Bogazi VTS Sektoru" },
-  { frek: 156.375, ad: "CH67 METEO", kanal: 67, aciklama: "Meteoroloji Yayini / SG Arama" },
-  { frek: 157.075, ad: "CH71 PILOT", kanal: 71, aciklama: "Istanbul Kilavuz" },
-];
 
 // ─── Token generation & verification ─────────────────────────────────────────
 
@@ -226,13 +192,36 @@ async function handleAuthVerify(request, env) {
   return jsonResponse({ token });
 }
 
-async function handleProtected(request, env, data) {
-  const authHeader = request.headers.get("Authorization") || "";
-  const token = authHeader.replace("Bearer ", "");
+async function handleProtectedDataset(request, env, cacheKey, upstreamUrl, parser, fallback) {
+  const auth = request.headers.get("Authorization") || "";
+  const token = auth.replace(/^Bearer\s+/i, "");
   if (!token || !(await verifyToken(token, env.PROTECTED_PASSWORD, env.PROTECTED_PASSWORD))) {
-    return jsonResponse({ hata: "Yetkilendirme gerekli" }, 401);
+    return jsonResponse({ hata: "Yetkisiz" }, 401);
   }
-  return jsonResponse(data);
+
+  const cache = caches.default;
+  const cacheReq = new Request(`https://cache.local/protected/${cacheKey}-v2`);
+  const cached = await cache.match(cacheReq);
+  if (cached) return cached;
+
+  let body;
+  try {
+    const resp = await fetch(upstreamUrl, {
+      signal: AbortSignal.timeout(10000),
+      headers: { "User-Agent": "Mozilla/5.0 TurkRoleExporter" },
+    });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const parsed = parser(await resp.text());
+    body = { ...parsed, kaynak: "live", guncellenme: new Date().toISOString() };
+  } catch (err) {
+    console.warn(`[${cacheKey}] live fetch failed, fallback:`, err.message);
+    body = fallback;
+  }
+
+  const response = jsonResponse(body);
+  response.headers.set("Cache-Control", "public, max-age=14400");
+  await cache.put(cacheReq, response.clone());
+  return response;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
