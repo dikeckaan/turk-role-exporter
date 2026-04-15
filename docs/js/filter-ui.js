@@ -7,6 +7,8 @@ import { state } from "./state.js";
 import { benzersizSehirler, benzersizIlceler, benzersizTaBolgeleri } from "./filtreler.js";
 import { bolgeSeciminiSenkronla, sehirSeciminiSenkronla } from "./harita.js";
 import { sehirdenFmKey } from "./frekanslar.js";
+import { secilenAirbandFrekanslari } from "./airband-ui.js";
+import { secilenMarineFrekanslari } from "./marine-ui.js";
 
 export function getSeciliSehirler() {
   return [...document.querySelectorAll("input[data-sehir]:checked")].map(
@@ -146,9 +148,9 @@ export function opsiyonTopla() {
     fmRadyoEkle: document.getElementById("opsiyon-fmradyo")?.checked ?? false,
     fmSehirler: fmSehirleriBelirle(),
     airbandEkle: document.getElementById("opsiyon-airband")?.checked ?? false,
-    airbandData: state.airbandData,
+    airbandSecili: secilenAirbandFrekanslari(state.airbandData, state.airbandSecim),
     marineEkle: document.getElementById("opsiyon-marine")?.checked ?? false,
-    marineData: state.marineData,
+    marineSecili: secilenMarineFrekanslari(state.marineData, state.marineSecim),
     simplexEkle: document.getElementById("opsiyon-simplex")?.checked ?? false,
     rxOnly: document.getElementById("opsiyon-rxonly")?.checked ?? true,
     gucSeviyesi: document.getElementById("guc-select")?.value || "High",

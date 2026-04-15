@@ -105,11 +105,13 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
     }
   }
 
-  // Airband
+  // Airband (selection-based)
   if (opsiyonlar.airbandEkle) {
-    for (const ab of (opsiyonlar.airbandData || [])) {
+    for (const ab of (opsiyonlar.airbandSecili || [])) {
       const col = boslukSatir(n);
-      col[0] = String(loc++); col[1] = ab.ad.slice(0, maxAd); col[2] = ab.frek.toFixed(6);
+      col[0] = String(loc++);
+      col[1] = (ab.ad || "").slice(0, maxAd);
+      col[2] = parseFloat(ab.frek).toFixed(6);
       col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
       col[11] = "Tone->Tone"; col[12] = "AM"; col[13] = "25.00"; col[14] = "S"; col[15] = "0.1W";
@@ -117,11 +119,13 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
     }
   }
 
-  // Marine
+  // Marine (selection-based)
   if (opsiyonlar.marineEkle) {
-    for (const mb of (opsiyonlar.marineData || [])) {
+    for (const mb of (opsiyonlar.marineSecili || [])) {
       const col = boslukSatir(n);
-      col[0] = String(loc++); col[1] = mb.ad.slice(0, maxAd); col[2] = mb.frek.toFixed(6);
+      col[0] = String(loc++);
+      col[1] = (mb.ad || mb.kanal || "").slice(0, maxAd);
+      col[2] = parseFloat(mb.frek).toFixed(6);
       col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
       col[8] = "023"; col[9] = "NN"; col[10] = "023";
       col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = "S"; col[15] = "0.1W";

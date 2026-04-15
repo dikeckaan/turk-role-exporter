@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { csvSatirlarUret, csvStringOlustur, jsonOlustur } from "../docs/js/csv.js";
+import { secilenAirbandFrekanslari } from "../docs/js/airband-ui.js";
+import { secilenMarineFrekanslari } from "../docs/js/marine-ui.js";
+import { AIRBAND_FALLBACK, MARINE_FALLBACK } from "../worker/fallback-data.js";
 
 // Minimal CHIRP profile for testing
 const chirpProfil = {
@@ -53,9 +56,9 @@ const defaultOpsiyonlar = {
   fmRadyoEkle: false,
   fmSehirler: [],
   airbandEkle: false,
-  airbandData: null,
+  airbandSecili: [],
   marineEkle: false,
-  marineData: null,
+  marineSecili: [],
   simplexEkle: false,
   rxOnly: true,
   gucSeviyesi: "High",
@@ -108,6 +111,41 @@ describe("csvStringOlustur", () => {
   it("escapes commas in values", () => {
     const csv = csvStringOlustur(["A"], [["hello, world"]]);
     assert.ok(csv.includes('"hello, world"'));
+  });
+});
+
+describe("csv with airband selection", () => {
+  it("produces AM rows only for selected airport+type combos", () => {
+    const airbandSecili = secilenAirbandFrekanslari(AIRBAND_FALLBACK,
+      { iller: ["Istanbul"], havalimanlari: { LTFM: ["ATIS"] } });
+    const { satirlar } = csvSatirlarUret([], chirpProfil,
+      { ...defaultOpsiyonlar, airbandEkle: true, airbandSecili, marineEkle: false });
+    assert.ok(satirlar.length > 0);
+    // All airband rows should be AM mode (col index 12)
+    for (const r of satirlar) assert.equal(r[12], "AM");
+  });
+
+  it("produces no rows when airband selection empty", () => {
+    const { satirlar } = csvSatirlarUret([], chirpProfil,
+      { ...defaultOpsiyonlar, airbandEkle: true, airbandSecili: [], marineEkle: false });
+    assert.equal(satirlar.length, 0);
+  });
+});
+
+describe("csv with marine selection", () => {
+  it("produces FM rows only for selected marine channels", () => {
+    const marineSecili = secilenMarineFrekanslari(MARINE_FALLBACK,
+      { vhf: ["CH16", "CH70"], sar: [], sahil: [] });
+    const { satirlar } = csvSatirlarUret([], chirpProfil,
+      { ...defaultOpsiyonlar, airbandEkle: false, marineEkle: true, marineSecili });
+    assert.equal(satirlar.length, 2);
+    for (const r of satirlar) assert.equal(r[12], "FM");
+  });
+
+  it("produces no rows when marine selection empty", () => {
+    const { satirlar } = csvSatirlarUret([], chirpProfil,
+      { ...defaultOpsiyonlar, airbandEkle: false, marineEkle: true, marineSecili: [] });
+    assert.equal(satirlar.length, 0);
   });
 });
 

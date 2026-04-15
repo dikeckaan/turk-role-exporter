@@ -327,6 +327,8 @@ function istatistikleriGuncelle() {
 
 function dinleyicileriKur() {
   document.addEventListener("filtre-degisti", () => uygulaDebounced());
+  document.addEventListener("airband-secim-degisti", () => uygulaDebounced());
+  document.addEventListener("marine-secim-degisti", () => uygulaDebounced());
 
   [
     "filtre-aktif", "filtre-ruhsat", "filtre-puan",
