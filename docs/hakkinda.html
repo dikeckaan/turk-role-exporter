@@ -137,7 +137,8 @@
 <li><a href="#mimari">Mimari</a></li>
 <li><a href="#proje-yap%C4%B1s%C4%B1">Proje yapısı</a></li>
 <li><a href="#geli%C5%9Ftirme">Geliştirme</a></li>
-<li><a href="#fallback-verisini-g%C3%BCncelleme">Fallback verisini güncelleme</a></li>
+<li><a href="#veri-g%C3%BCncelleme-scriptleri">Veri güncelleme script&#39;leri</a></li>
+<li><a href="#ziyaret%C3%A7i-istatistikleri">Ziyaretçi istatistikleri</a></li>
 <li><a href="#deploy">Deploy</a></li>
 <li><a href="#test">Test</a></li>
 <li><a href="#lisans-ve-katk%C4%B1">Lisans ve katkı</a></li>
@@ -150,21 +151,31 @@
 <li><strong>OpenGD77</strong> (Radioddity GD-77, TYT MD-380, Baofeng DM-1801, Radioddity RD-5R)</li>
 <li><strong>TYT MD-UV390 Plus</strong></li>
 </ul>
-<p>Özellikler:</p>
+<p>Temel özellikler:</p>
 <ul>
 <li>TA bölgesi, şehir, ilçe, bant (VHF/UHF), mod (analog/dijital), aktiflik, lisans, QRZ skoruna göre filtre</li>
 <li>Ek kanallar: PMR, dPMR, FM Radyo, dijital simplex</li>
-<li>Parola korumalı Air Band ve Marine Band frekans seti</li>
-<li>Leaflet harita, sürüklenebilir röle pin&#39;leri</li>
-<li>Önizleme tablosu, undo/redo, arama</li>
-<li>Önayar (preset) kaydetme/yükleme</li>
-<li>Koyu mod</li>
-<li>Mevcut CSV&#39;yi içe aktarıp birleştirme</li>
-<li>RX-only mod, boş kanal eklenmesi, güç seviyesi ve kanal adı şablonu özelleştirme</li>
+<li>Leaflet harita, sürüklenebilir röle pinleri</li>
+<li>Önizleme tablosu, hücre editi, undo/redo, arama</li>
+<li>Önayar (preset) kaydetme/yükleme (v2 şema: airband/marine seçimleri dahil)</li>
+<li>4 tema seçici (Pure Dark, Navy, Kömür, Açık) — sağ alt köşede FAB</li>
+<li>Mevcut CSV&#39;yi içe aktarıp birleştirme, JSON export, RX-only mod, boş kanal eklenmesi</li>
+</ul>
+<h3>Korunan kanallar (parola gerektirir)</h3>
+<p>Parola arkasında 4 grup — tek parola ile dördü birden açılır:</p>
+<ul>
+<li><strong>Airband</strong> — il → havalimanı → tür (ATIS / Tower / Ground / Approach / Clearance / Departure / Ramp / Center / …) kademeli seçim. <strong>~65 TR havalimanı</strong>, ~180 frekans; OurAirports.com CC0 dataset&#39;inden otomatik çekilir.</li>
+<li><strong>Marine</strong> — 3 bölüm akordiyon: VHF Marine Band (ta1dx canlı scrape, ~60 kanal), SAR Frekansları, Türk Sahil Radyoları. Her bölüm içinde frekans başına checkbox + &quot;Hepsi / Hiçbiri&quot; kısayolu ve <code>[tikli/toplam]</code> sayaç.</li>
+<li><strong>PMR + dPMR</strong> — PMR446 analog ve dijital kanallar. Kilit açıldıktan sonra RX-only alt seçimi serbest çalışır.</li>
 </ul>
 <h2>Canlı versiyon</h2>
-<p>Statik site <code>docs/</code> klasöründen GitHub Pages üzerinden yayınlanır. Repo: <a href="https://github.com/dikeckaan/turk-role-exporter"><code>dikeckaan/turk-role-exporter</code></a>.</p>
-<p>API trafiği <code>https://telsizrole.kaandikec.com</code> adresindeki Cloudflare Worker&#39;a gider.</p>
+<p>Statik site <code>docs/</code> klasöründen GitHub Pages üzerinden yayınlanır:</p>
+<ul>
+<li><strong>Site</strong>: <a href="http://kaandikec.com/turk-role-exporter/">http://kaandikec.com/turk-role-exporter/</a></li>
+<li><strong>Hakkında</strong>: <code>/hakkinda.html</code> (README&#39;den otomatik üretilir)</li>
+<li><strong>Repo</strong>: <a href="https://github.com/dikeckaan/turk-role-exporter"><code>dikeckaan/turk-role-exporter</code></a></li>
+<li><strong>Worker API</strong>: <code>https://telsizrole.kaandikec.com</code></li>
+</ul>
 <h2>Veri kaynakları</h2>
 <table>
 <thead>
@@ -176,17 +187,32 @@
 </thead>
 <tbody><tr>
 <td><code>amatortelsizcilik.com.tr/roleler/data.json</code></td>
-<td>Birincil JSON API. <strong>Şu an upstream login arkasında</strong>, anonim erişim 500 dönüyor. Bu yüzden site fallback&#39;e düşüyor — aşağıdaki bölüme bakın.</td>
+<td>Birincil röle JSON API. <strong>Upstream login arkasında</strong>, anonim erişim 500 dönüyor — fallback aktif.</td>
 <td>4 saat</td>
 </tr>
 <tr>
 <td><code>ta-role.com</code></td>
-<td>İkincil. CF Worker subrequest limitine uymak için 5 paralel parça (<code>vhf1</code>, <code>vhf2</code>, <code>uhf1</code>, <code>uhf2</code>, <code>dmr</code>) halinde HTML scrape edilir. Talkgrup ve dijital simplex listelerini de buradan çeker.</td>
+<td>İkincil röle kaynağı. 5 paralel parça (<code>vhf1</code>, <code>vhf2</code>, <code>uhf1</code>, <code>uhf2</code>, <code>dmr</code>) HTML scraping. Talkgroup + dijital simplex&#39;i de buradan çeker.</td>
 <td>4 saat</td>
 </tr>
 <tr>
+<td><code>ta1dx.qsl.net/amator/bandmarine.htm</code></td>
+<td><strong>Marine VHF band</strong> canlı scrape (regex tabanlı HTML parse, windows-1254 kaynak). SAR + Sahil radyoları bölümleri ayrı sayfalarda yaşadığı için <code>MARINE_FALLBACK</code>&#39;ten gelir.</td>
+<td>4 saat</td>
+</tr>
+<tr>
+<td><code>ourairports.com</code> CSV dataset</td>
+<td><strong>Airband</strong> için havalimanı + frekans verisi. Runtime&#39;da çekilmez; <code>npm run update-airband</code> ile periyodik olarak <code>worker/fallback-data.js</code>&#39;e gömülür.</td>
+<td>—</td>
+</tr>
+<tr>
 <td><code>docs/js/fallback-data.js</code></td>
-<td>Gömülü yedek. <code>npm run update-fallback</code> ile yenilenir. ~507 röle.</td>
+<td>Röle verisi offline yedeği. <code>npm run update-fallback</code> ile yenilenir.</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>worker/fallback-data.js</code></td>
+<td>Airband + Marine gömülü snapshot. Scraper başarısızsa / worker tarafında kaynak anonim erişime kapalıysa dönülür.</td>
 <td>—</td>
 </tr>
 </tbody></table>
@@ -198,101 +224,239 @@
                                         │ fetch
                                         ▼
                        ┌─────────────────────────────────────┐
-                       │   Cloudflare Worker                 │
-                       │   telsizrole.kaandikec.com          │
-                       │   worker/index.js                   │
-                       └─────────┬──────────────┬────────────┘
-                                 │              │
-                                 ▼              ▼
-              amatortelsizcilik.com.tr     ta-role.com
-              (4h cache, login arkasında)  (4h cache, 5 part scrape)
+                       │     Cloudflare Worker               │
+                       │     telsizrole.kaandikec.com        │
+                       │     worker/index.js                 │
+                       │  ┌────────┬──────────┬───────────┐  │
+                       │  │ proxy  │ scrapers │ stats KV  │  │
+                       │  └────────┴──────────┴───────────┘  │
+                       └─────┬─────────┬─────────┬───────────┘
+                             │         │         │
+                             ▼         ▼         ▼
+            amatortelsizcilik.com.tr  ta-role.com  ta1dx.qsl.net
+             + (gömülü fallback-data.js: röle, airband, marine snapshot)
 </code></pre>
-<p><strong>Frontend</strong> (<code>docs/</code>) — vanilla ES modules, statik. Anahtar dosyalar:</p>
-<ul>
-<li><code>docs/index.html</code> — UI</li>
-<li><code>docs/js/app.js</code> — modülleri bağlayan ana orkestratör</li>
-<li><code>docs/js/api.js</code> — worker&#39;a istek + fallback</li>
-<li><code>docs/js/cihazlar.js</code> — cihaz profilleri (sütunlar, güç, varsayılanlar)</li>
-<li><code>docs/js/csv.js</code> — CSV serileştirme</li>
-<li><code>docs/js/data-sources.js</code> — kaynak birleştirme + TA bölge eşleme (<code>SEHIR_TABOLGE</code>)</li>
-<li><code>docs/js/filtreler.js</code>, <code>filter-ui.js</code> — filtre mantığı + UI</li>
-<li><code>docs/js/harita.js</code> — Leaflet harita</li>
-<li><code>docs/js/tablo.js</code> — önizleme tablosu</li>
-<li><code>docs/js/auth-modal.js</code> — Air/Marine için parola modal&#39;ı</li>
-<li><code>docs/js/fallback-data.js</code> — gömülü yedek (otomatik üretilir, elle düzenleme)</li>
-</ul>
-<p><strong>Backend</strong> (<code>worker/index.js</code>) — Cloudflare Worker. Endpoint listesi:</p>
+<p><strong>Frontend</strong> (<code>docs/</code>) — vanilla ES modules, statik. Önemli dosyalar:</p>
+<table>
+<thead>
+<tr>
+<th>Dosya</th>
+<th>Sorumluluk</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>docs/index.html</code></td>
+<td>UI iskeleti</td>
+</tr>
+<tr>
+<td><code>docs/js/app.js</code></td>
+<td>Ana orkestratör: modülleri bağlar, event listener&#39;lar, boot akışı</td>
+</tr>
+<tr>
+<td><code>docs/js/api.js</code></td>
+<td>Worker API çağrıları + röle fallback</td>
+</tr>
+<tr>
+<td><code>docs/js/cihazlar.js</code></td>
+<td>Cihaz profilleri (sütunlar, güç, varsayılanlar)</td>
+</tr>
+<tr>
+<td><code>docs/js/csv.js</code></td>
+<td>CSV + JSON serileştirme</td>
+</tr>
+<tr>
+<td><code>docs/js/data-sources.js</code></td>
+<td>Kaynak birleştirme + TA bölge eşleme (<code>SEHIR_TABOLGE</code>)</td>
+</tr>
+<tr>
+<td><code>docs/js/filter-ui.js</code></td>
+<td>Filtre UI + seçim-temelli airband/marine export&#39;u toplar</td>
+</tr>
+<tr>
+<td><code>docs/js/filtreler.js</code></td>
+<td>Filtre uygulama mantığı</td>
+</tr>
+<tr>
+<td><code>docs/js/harita.js</code></td>
+<td>Leaflet harita</td>
+</tr>
+<tr>
+<td><code>docs/js/tablo.js</code></td>
+<td>Önizleme tablosu, hücre editi</td>
+</tr>
+<tr>
+<td><code>docs/js/auth-modal.js</code></td>
+<td>Parola modalı, 4 korunan grubun kilit açma akışı</td>
+</tr>
+<tr>
+<td><code>docs/js/airband-ui.js</code></td>
+<td>İl→Havalimanı→Tür cascade picker (yeni)</td>
+</tr>
+<tr>
+<td><code>docs/js/marine-ui.js</code></td>
+<td>3-bölüm accordion picker (yeni)</td>
+</tr>
+<tr>
+<td><code>docs/js/stats.js</code></td>
+<td>Anonim ziyaretçi + indirme sayaçları istemci tarafı (yeni)</td>
+</tr>
+<tr>
+<td><code>docs/js/presets.js</code></td>
+<td>v2 preset schema, v1 geriye uyum, <code>state.airbandSecim</code>/<code>marineSecim</code> persist</td>
+</tr>
+<tr>
+<td><code>docs/js/theme.js</code></td>
+<td>4 temalı FAB menü, OS tercihini takip</td>
+</tr>
+<tr>
+<td><code>docs/js/fallback-data.js</code></td>
+<td>Röle offline yedeği (otomatik üretilir — elle düzenleme)</td>
+</tr>
+</tbody></table>
+<p><strong>Backend</strong> (<code>worker/</code>) — Cloudflare Worker:</p>
+<table>
+<thead>
+<tr>
+<th>Dosya</th>
+<th>Sorumluluk</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>worker/index.js</code></td>
+<td>Router, token HMAC, fetch orkestratörü (<code>handleProtectedDataset</code>), asset serving</td>
+</tr>
+<tr>
+<td><code>worker/fallback-data.js</code></td>
+<td><code>AIRBAND_FALLBACK</code> (iller ağacı) + <code>MARINE_FALLBACK</code> (3 bölüm)</td>
+</tr>
+<tr>
+<td><code>worker/scrapers.js</code></td>
+<td>Saf HTML parsers: <code>parseAirbandHtml</code> (stub, skyvector JS-rendered), <code>parseMarineHtml</code> (ta1dx VHF live)</td>
+</tr>
+<tr>
+<td><code>worker/stats.js</code></td>
+<td>KV-destekli anonim istatistik endpoint&#39;leri</td>
+</tr>
+<tr>
+<td><code>worker/SCRAPER-NOTES.md</code></td>
+<td>Scraper fizibilite notları (skyvector neden elde değil, OurAirports alternatifi)</td>
+</tr>
+</tbody></table>
+<h3>API endpoint&#39;leri</h3>
 <table>
 <thead>
 <tr>
 <th>Method</th>
 <th>Path</th>
 <th>Açıklama</th>
+<th>Auth</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>GET</td>
 <td><code>/api/roleler</code></td>
 <td>amatortelsizcilik.com.tr proxy</td>
+<td>—</td>
 </tr>
 <tr>
 <td>GET</td>
-<td><code>/api/tarole/roleler?part={vhf1|vhf2|uhf1|uhf2|dmr}</code></td>
-<td>ta-role scraper</td>
+<td><code>/api/tarole/roleler?part=…</code></td>
+<td>ta-role.com VHF/UHF/DMR scraper</td>
+<td>—</td>
 </tr>
 <tr>
 <td>GET</td>
 <td><code>/api/tarole/talkgruplar</code></td>
 <td>DMR talk grupları</td>
+<td>—</td>
 </tr>
 <tr>
 <td>GET</td>
 <td><code>/api/tarole/simplex</code></td>
 <td>Dijital simplex frekansları</td>
+<td>—</td>
 </tr>
 <tr>
 <td>GET</td>
 <td><code>/api/tarole/debug</code></td>
 <td>Tanı bilgisi (cache yok)</td>
+<td>—</td>
 </tr>
 <tr>
 <td>POST</td>
 <td><code>/api/auth/verify</code></td>
 <td>HMAC parola → saatlik token</td>
+<td>—</td>
 </tr>
 <tr>
 <td>GET</td>
 <td><code>/api/protected/airband</code></td>
-<td>Bearer token gerekir</td>
+<td>Airband iller ağacı (live fetch + fallback)</td>
+<td>Bearer</td>
 </tr>
 <tr>
 <td>GET</td>
 <td><code>/api/protected/marine</code></td>
-<td>Bearer token gerekir</td>
+<td>Marine 3-bölüm (VHF live + SAR/sahil fallback)</td>
+<td>Bearer</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/stats/ping</code></td>
+<td>Anonim ziyaret kaydı</td>
+<td>—</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/stats/download</code></td>
+<td>CSV indirme kaydı</td>
+<td>—</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/stats</code></td>
+<td>Agrege ziyaret + indirme sayaçları</td>
+<td>—</td>
 </tr>
 </tbody></table>
 <h2>Proje yapısı</h2>
 <pre><code>.
-├── docs/                    # Statik frontend (GitHub Pages&#39;e deploy edilir)
+├── docs/                      # Statik frontend (GitHub Pages)
 │   ├── index.html
+│   ├── hakkinda.html          # README&#39;den üretilir
 │   ├── css/style.css
-│   └── js/                  # ES modules
+│   ├── js/                    # ES modules — yukarıdaki tabloya bakın
+│   └── sw.js                  # Service worker (offline cache)
 ├── worker/
-│   └── index.js             # Cloudflare Worker
+│   ├── index.js               # Cloudflare Worker
+│   ├── fallback-data.js       # Airband + Marine gömülü snapshot
+│   ├── scrapers.js            # HTML parsers
+│   ├── stats.js               # KV istatistik endpoint&#39;leri
+│   └── SCRAPER-NOTES.md
 ├── scripts/
-│   └── update-fallback.js   # backup.json → fallback-data.js
-├── tests/                   # node --test
-├── plans/                   # geliştirme planları (referans)
-├── backup.json              # (opsiyonel) en son data.json snapshot&#39;ı
-├── wrangler.toml
+│   ├── update-fallback.js     # backup.json → docs/js/fallback-data.js
+│   ├── update-airband.js      # OurAirports.com → worker/fallback-data.js
+│   └── build-hakkinda.js      # README.md → docs/hakkinda.html
+├── tests/                     # node --test
+│   ├── airband.test.js
+│   ├── marine.test.js
+│   ├── csv.test.js
+│   ├── filtreler.test.js
+│   ├── utils.test.js
+│   ├── scrapers.test.js
+│   ├── protected-unlock.test.js
+│   └── fixtures/              # scraper test fixtures
+├── docs/superpowers/          # Design spec + implementation plan
+├── backup.json                # (opsiyonel) en son röle data.json snapshot&#39;ı
+├── wrangler.toml              # KV binding + site bucket
 └── package.json
 </code></pre>
 <h2>Geliştirme</h2>
-<p><strong>Gereksinimler:</strong> Node.js 20+, npm, <a href="https://developers.cloudflare.com/workers/wrangler/install-and-update/">Wrangler CLI</a> (<code>npm i -g wrangler</code> veya devDependency olarak).</p>
+<p><strong>Gereksinimler:</strong> Node.js 20+, npm, <a href="https://developers.cloudflare.com/workers/wrangler/install-and-update/">Wrangler CLI</a>.</p>
 <p><strong>Kurulum:</strong></p>
 <pre><code class="language-bash">npm install
 </code></pre>
-<p>Air Band / Marine Band parolasını yerelde test etmek için repo köküne <code>.dev.vars</code> dosyası oluştur:</p>
+<p>Air/Marine/PMR parolasını yerelde test etmek için repo köküne <code>.dev.vars</code>:</p>
 <pre><code>PROTECTED_PASSWORD=secret-değerin
 </code></pre>
 <p><strong>Komutlar:</strong></p>
@@ -305,7 +469,7 @@
 </thead>
 <tbody><tr>
 <td><code>npm run dev</code></td>
-<td><code>wrangler dev</code> — worker + statik site (varsayılan: <a href="http://localhost:8787">http://localhost:8787</a>)</td>
+<td><code>wrangler dev</code> — worker + statik site (<a href="http://localhost:8787">http://localhost:8787</a>)</td>
 </tr>
 <tr>
 <td><code>npm run lint</code></td>
@@ -321,57 +485,78 @@
 </tr>
 <tr>
 <td><code>npm run update-fallback</code></td>
-<td><code>backup.json</code> → <code>docs/js/fallback-data.js</code></td>
+<td><code>backup.json</code> → <code>docs/js/fallback-data.js</code> (röle)</td>
+</tr>
+<tr>
+<td><code>npm run update-airband</code></td>
+<td>OurAirports CSV → <code>worker/fallback-data.js</code> (airband)</td>
+</tr>
+<tr>
+<td><code>npm run build-hakkinda</code></td>
+<td><code>README.md</code> → <code>docs/hakkinda.html</code></td>
 </tr>
 <tr>
 <td><code>npm run deploy</code></td>
 <td><code>wrangler deploy</code> — worker&#39;ı production&#39;a gönderir</td>
 </tr>
 </tbody></table>
-<h2>Fallback verisini güncelleme</h2>
-<p>amatortelsizcilik.com.tr <code>/roleler/data.json</code> endpoint&#39;i artık login gerektiriyor; CF Worker anonim olarak 500 alıyor. Bu nedenle birincil veri şu an gömülü <code>fallback-data.js</code>&#39;ten geliyor ve <strong>elle yenilenmesi gerek</strong>.</p>
-<p>Workflow:</p>
+<h2>Veri güncelleme script&#39;leri</h2>
+<h3>Röle verisi (<code>npm run update-fallback</code>)</h3>
+<p>amatortelsizcilik.com.tr <code>/roleler/data.json</code> endpoint&#39;i login gerektirdiği için CF Worker anonim olarak 500 alıyor. Röle verisi gömülü <code>docs/js/fallback-data.js</code>&#39;ten geliyor ve elle yenilenmesi gerek:</p>
 <ol>
-<li><p>Tarayıcıda amatortelsizcilik.com.tr&#39;ye giriş yap</p>
-</li>
-<li><p><code>https://amatortelsizcilik.com.tr/roleler/data.json</code> URL&#39;sini aç → JSON çıktısını <strong>olduğu gibi</strong> kaydet</p>
-</li>
-<li><p>Repo köküne <code>backup.json</code> olarak yapıştır (mevcut dosyanın üzerine yaz)</p>
-</li>
-<li><p>Yenile:</p>
-<pre><code class="language-bash">npm run update-fallback
-</code></pre>
-</li>
-<li><p>Üretilen <code>docs/js/fallback-data.js</code>&#39;i commit&#39;le</p>
-</li>
+<li>Tarayıcıda amatortelsizcilik.com.tr&#39;ye giriş yap</li>
+<li><code>https://amatortelsizcilik.com.tr/roleler/data.json</code> URL&#39;sini aç → JSON çıktısını olduğu gibi kaydet</li>
+<li>Repo köküne <code>backup.json</code> olarak yapıştır</li>
+<li><code>npm run update-fallback</code></li>
+<li>Üretilen <code>docs/js/fallback-data.js</code>&#39;i commit&#39;le</li>
 </ol>
-<p><code>backup.json</code> formatı, upstream <code>data.json</code>&#39;ın birebir kendisi: röle objelerinden oluşan bir JSON array. Script (<code>scripts/update-fallback.js</code>) sayıyı doğrular, ESM export&#39;a sarar, üst satırına tarih damgası koyar.</p>
+<h3>Airband verisi (<code>npm run update-airband</code>)</h3>
+<p>OurAirports.com&#39;un açık (CC0) CSV dataset&#39;inden TR havalimanları + VHF airband frekansları (108-137 MHz) çekilir, ISO 3166-2:TR plaka kodlarına göre illere göre gruplanır, <code>worker/fallback-data.js</code>&#39;teki <code>AIRBAND_FALLBACK</code>&#39;i günceller. Script internet erişimi gerektirir, sonra commit + <code>npm run deploy</code>.</p>
+<h3>Hakkında sayfası (<code>npm run build-hakkinda</code>)</h3>
+<p><code>README.md</code> → <code>docs/hakkinda.html</code>. README&#39;yi her güncellediğinizde çalıştırın; dosyayı commit edin.</p>
+<h2>Ziyaretçi istatistikleri</h2>
+<p>Ana sayfada ve hakkında sayfasında &quot;Ziyaretçi İstatistikleri&quot; kartı: çalışma süresi, toplam/bugün ziyaretçi, &quot;Sen N. ziyaretçisin&quot;, toplam/bugün indirme, cihaza göre indirme dağılımı (yatay bar).</p>
+<p><strong>Gizlilik:</strong> Hiçbir PII saklanmaz — <strong>IP, user-agent, referrer, fingerprint hiçbiri yok</strong>. Ziyaret kimliği yalnızca tarayıcı sessionStorage flag&#39;iyle belirlenir; session başına 1 ping. CSV indirmesinde <code>recordDownload(cihazId)</code> fire-and-forget POST atar.</p>
+<p><strong>Depolama:</strong> Cloudflare KV namespace <code>STATS</code>. Anahtarlar:</p>
+<ul>
+<li><code>site:firstLaunch</code> — ilk ziyaretin ISO tarihi</li>
+<li><code>site:visits:total</code>, <code>site:visits:day:YYYY-MM-DD</code></li>
+<li><code>site:downloads:total</code>, <code>site:downloads:day:YYYY-MM-DD</code>, <code>site:downloads:device:&lt;cihaz&gt;</code></li>
+</ul>
+<p>KV namespace bir kereliğine oluşturulur:</p>
+<pre><code class="language-bash">npx wrangler kv namespace create STATS
+</code></pre>
+<p>Dönen <code>id</code>&#39;yi <code>wrangler.toml</code>&#39;daki <code>[[kv_namespaces]]</code> bloğuna yapıştır.</p>
 <h2>Deploy</h2>
-<p><strong>Frontend:</strong> <code>main</code> veya <code>feature/cf-worker-full-site</code> branch&#39;ine push → GitHub Actions (<code>.github/workflows/deploy-pages.yml</code>) otomatik olarak <code>docs/</code>&#39;u GitHub Pages&#39;e deploy eder. Manuel tetiklemek için <code>workflow_dispatch</code> kullanılabilir.</p>
+<p><strong>Frontend:</strong> Herhangi bir branch&#39;e push → GitHub Actions (<code>.github/workflows/deploy-pages.yml</code>) otomatik olarak <code>docs/</code>&#39;u GitHub Pages&#39;e deploy eder.</p>
 <p><strong>Worker:</strong></p>
 <pre><code class="language-bash">npm run deploy
 </code></pre>
-<p>Production parola sırrını ayarlamak için:</p>
+<p>Production parola sırrı:</p>
 <pre><code class="language-bash">wrangler secret put PROTECTED_PASSWORD
 </code></pre>
-<p>CI/CD ortamında ise GitHub repository secret&#39;ı olarak <code>PROTECTED_PASSWORD</code> tanımlanır ve deploy workflow&#39;unda env&#39;e geçirilir.</p>
+<p>CI&#39;da: GitHub secret <code>PROTECTED_PASSWORD</code> deploy workflow&#39;una env olarak geçirilir.</p>
 <h2>Test</h2>
-<p>Birim testler <code>tests/</code> altında, Node&#39;un yerleşik test runner&#39;ı ile:</p>
 <pre><code class="language-bash">npm test
 </code></pre>
-<p>Mevcut suite&#39;ler:</p>
+<p>Mevcut suite&#39;ler (56 test):</p>
 <ul>
-<li><code>tests/csv.test.js</code> — CSV format/serileştirme</li>
+<li><code>tests/airband.test.js</code> — seçim filtresi, dedup, preset roundtrip</li>
+<li><code>tests/marine.test.js</code> — 3-bölüm seçim semantiği</li>
+<li><code>tests/csv.test.js</code> — CSV format + seçim-temelli airband/marine export</li>
+<li><code>tests/scrapers.test.js</code> — ta1dx parser + fallback merge + fallback shape</li>
+<li><code>tests/protected-unlock.test.js</code> — 4 grubun <code>protected-group</code> class&#39;ı + <code>*-unlocked</code> wrapper invariant</li>
 <li><code>tests/filtreler.test.js</code> — filtre mantığı</li>
-<li><code>tests/utils.test.js</code> — yardımcılar (Türkçe normalizasyon, bant tespiti)</li>
+<li><code>tests/utils.test.js</code> — Türkçe normalizasyon, bant tespiti, TX hesabı, puanlama</li>
 </ul>
 <h2>Lisans ve katkı</h2>
-<p>Repo&#39;da <code>LICENSE</code> dosyası yok; lisans henüz belirtilmemiştir.</p>
-<p>Katkı vermek için:</p>
+<p>Repo&#39;da <code>LICENSE</code> dosyası yok; lisans henüz belirtilmemiştir. OurAirports verisi CC0, ta1dx içeriği qsl.net kullanım şartlarına tabidir — canlı scraping ilgili sitelerin ToS&#39;una saygılı cache süreleriyle (4 saat) yapılır.</p>
+<p>Katkı için:</p>
 <ol>
 <li>Branch aç</li>
 <li>Değişikliklerini yap</li>
 <li><code>npm run lint &amp;&amp; npm test</code> geçtiğinden emin ol</li>
+<li>README&#39;yi etkileyen değişiklikler için <code>npm run build-hakkinda</code></li>
 <li>PR aç</li>
 </ol>
 
