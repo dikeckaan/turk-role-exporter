@@ -85,9 +85,15 @@ async function basla() {
       if (gucSelect && opts.gucSeviyesi) gucSelect.value = opts.gucSeviyesi;
       const formatSelect = document.getElementById("kanal-format-select");
       if (formatSelect && opts.kanalAdiFormati) formatSelect.value = opts.kanalAdiFormati;
-      // Restore airband/marine selections from preset
-      if (preset.airbandSecim) state.airbandSecim = preset.airbandSecim;
-      if (preset.marineSecim)  state.marineSecim  = preset.marineSecim;
+      // Restore airband/marine selections from preset + rebuild UI
+      if (preset.airbandSecim) {
+        state.airbandSecim = preset.airbandSecim;
+        if (state.airbandData) airbandUiKur();
+      }
+      if (preset.marineSecim) {
+        state.marineSecim = preset.marineSecim;
+        if (state.marineData) marineUiKur();
+      }
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     }
   );

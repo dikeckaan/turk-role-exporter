@@ -5,6 +5,8 @@
 
 import { state } from "./state.js";
 import { sifreDogrula, airbandGetir, marineGetir } from "./api.js";
+import { airbandUiKur } from "./airband-ui.js";
+import { marineUiKur } from "./marine-ui.js";
 
 export function sifreModaliGoster(hedefCheckboxId) {
   const modal = document.getElementById("sifre-modal");
@@ -45,6 +47,8 @@ export async function sifreOnayla() {
 
     sifreModaliKapat();
     korunanlariGuncelle(true);
+    if (state.airbandData) airbandUiKur();
+    if (state.marineData) marineUiKur();
 
     const hedef = modal.dataset.hedef;
     if (hedef) {
