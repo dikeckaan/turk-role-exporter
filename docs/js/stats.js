@@ -9,10 +9,10 @@ const SESSION_KEY = "roleExporterStatsPinged";
 const VISITOR_KEY = "roleExporterVisitorNumber";
 
 const CIHAZ_LABEL = {
-  "uv-k5":           "Quansheng UV-K5",
-  "baofeng-k5-plus": "Baofeng K5 Plus",
-  "opengd77":        "OpenGD77",
-  "md-uv390":        "TYT MD-UV390 Plus",
+  "quansheng-uv-k5-f4hwn": "Quansheng UV-K5 (F4HWN)",
+  "baofeng-k5-plus":       "Baofeng K5 Plus",
+  "opengd77":              "OpenGD77",
+  "tyt-md-uv390-plus":     "TYT MD-UV390 Plus",
 };
 
 /** Record a visit once per browser session, store + return visitor number. */

@@ -20,7 +20,12 @@
  *   GET  /api/stats           → aggregated JSON
  */
 
-const DEVICES = ["uv-k5", "baofeng-k5-plus", "opengd77", "md-uv390"];
+const DEVICES = [
+  "quansheng-uv-k5-f4hwn",
+  "baofeng-k5-plus",
+  "opengd77",
+  "tyt-md-uv390-plus",
+];
 const KNOWN_DEVICE_SET = new Set(DEVICES);
 
 function todayIso() {
