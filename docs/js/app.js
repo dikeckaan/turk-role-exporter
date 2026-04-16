@@ -39,6 +39,7 @@ import { isDijital, sehirPlaka } from "./utils.js";
 import { airbandGetir, marineGetir } from "./api.js";
 import { airbandUiKur } from "./airband-ui.js";
 import { marineUiKur } from "./marine-ui.js";
+import { pingIfFirstVisit, recordDownload, loadStats, renderStatsPanel } from "./stats.js";
 import { themeBaslat } from "./theme.js";
 import { presetUiKur } from "./presets.js";
 import { undoUiKur, undoKaydet, undoTemizle } from "./undo.js";
@@ -150,6 +151,11 @@ async function basla() {
     taBolgesiDoldur();
     uygula();
   }
+
+  // Anonymous visitor stats — best-effort, never blocks the UI.
+  const { visitorNumber } = await pingIfFirstVisit();
+  const aggregated = await loadStats();
+  renderStatsPanel("ziyaretci-stats", aggregated, visitorNumber);
 }
 
 // ─── Debounce Helper ──────────────────────────────────────
@@ -464,6 +470,7 @@ function dinleyicileriKur() {
       if (!dosyaAdi.endsWith(".csv")) dosyaAdi += ".csv";
       csvIndir(csv, dosyaAdi);
     }
+    recordDownload(state.seciliCihaz);
   });
 
   document.getElementById("csv-import-input")?.addEventListener("change", (e) => {

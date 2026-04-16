@@ -1346,3 +1346,80 @@ input[type="number"]:focus {
 .marine-row { display: flex; align-items: center; gap: 6px; padding: 4px 0;
               font-size: 0.9rem; color: var(--text); cursor: pointer; }
 .marine-row:hover { background: var(--surface-2); }
+
+/* Visitor statistics panel */
+.visitor-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.visitor-stat-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.visitor-stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.1;
+}
+.visitor-stat-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+.visitor-stat-sub {
+  color: var(--text);
+  font-size: 0.8rem;
+  margin-top: 6px;
+  opacity: 0.85;
+}
+.visitor-device-heading {
+  font-weight: 600;
+  color: var(--text);
+  margin: 16px 0 10px;
+  font-size: 0.95rem;
+}
+.visitor-device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.visitor-device-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 180px) 1fr 60px;
+  align-items: center;
+  gap: 10px;
+}
+.visitor-device-name {
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.visitor-device-bar-wrap {
+  background: var(--surface-2);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+}
+.visitor-device-bar {
+  background: var(--accent);
+  height: 100%;
+  transition: width 0.3s;
+}
+.visitor-device-count {
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.visitor-stat-note {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 14px;
+  text-align: center;
+  font-style: italic;
+}

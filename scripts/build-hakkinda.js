@@ -153,6 +153,11 @@ const page = `<!DOCTYPE html>
     <article class="markdown-body">
 ${html}
     </article>
+
+    <section class="section" style="margin-top:24px;">
+      <div class="section-title">Ziyaretci Istatistikleri</div>
+      <div id="ziyaretci-stats"></div>
+    </section>
   </div>
 
   <button type="button" id="theme-fab" class="theme-fab" aria-label="Tema sec" aria-haspopup="menu">
@@ -165,7 +170,13 @@ ${html}
 
   <script type="module">
     import { themeBaslat } from "./js/theme.js";
+    import { pingIfFirstVisit, loadStats, renderStatsPanel } from "./js/stats.js";
     themeBaslat();
+    (async () => {
+      const { visitorNumber } = await pingIfFirstVisit();
+      const s = await loadStats();
+      renderStatsPanel("ziyaretci-stats", s, visitorNumber);
+    })();
   </script>
 </body>
 </html>

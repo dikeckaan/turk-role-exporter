@@ -5,6 +5,13 @@ compatibility_date = "2024-01-01"
 [site]
 bucket = "./docs"
 
+# KV namespace for anonymous visitor/download statistics.
+# Create once with: `npx wrangler kv namespace create STATS`
+# Paste the returned `id` below, then `npm run deploy`.
+[[kv_namespaces]]
+binding = "STATS"
+id = "67f03929b9454001b4e8bef485e7f095"
+
 # PROTECTED_PASSWORD is set via:
 #   Production: wrangler secret put PROTECTED_PASSWORD
 #   CI/CD: GitHub secret PROTECTED_PASSWORD (passed in deploy workflow)

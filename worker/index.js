@@ -20,6 +20,7 @@ import { getAssetFromKV } from "@cloudflare/kv-asset-handler";
 import manifestJSON from "__STATIC_CONTENT_MANIFEST";
 import { AIRBAND_FALLBACK, MARINE_FALLBACK } from "./fallback-data.js";
 import { parseAirbandHtml, parseMarineHtml } from "./scrapers.js";
+import { handleStatsRoute } from "./stats.js";
 
 const assetManifest = JSON.parse(manifestJSON);
 
@@ -64,6 +65,13 @@ export default {
     // API routes — allow GET and POST
     if (request.method !== "GET" && request.method !== "POST") {
       return jsonResponse({ hata: "Sadece GET ve POST desteklenir" }, 405);
+    }
+
+    // Stats routes (KV-backed counters)
+    if (url.pathname.startsWith("/api/stats")) {
+      const result = await handleStatsRoute(request, env, url.pathname);
+      if (result !== null) return jsonResponse(result);
+      return jsonResponse({ hata: "Bulunamadi" }, 404);
     }
 
     switch (url.pathname) {
