@@ -9,7 +9,8 @@
     "format": "prettier --write docs/js/ worker/ docs/css/",
     "test": "node --test tests/*.test.js",
     "update-fallback": "node scripts/update-fallback.js",
-    "build-hakkinda": "node scripts/build-hakkinda.js"
+    "build-hakkinda": "node scripts/build-hakkinda.js",
+    "update-airband": "node scripts/update-airband.js"
   },
   "dependencies": {
     "@cloudflare/kv-asset-handler": "^0.3.4"

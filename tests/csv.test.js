@@ -117,7 +117,7 @@ describe("csvStringOlustur", () => {
 describe("csv with airband selection", () => {
   it("produces AM rows only for selected airport+type combos", () => {
     const airbandSecili = secilenAirbandFrekanslari(AIRBAND_FALLBACK,
-      { iller: ["Istanbul"], havalimanlari: { LTFM: ["ATIS"] } });
+      { iller: ["Istanbul"], havalimanlari: { LTBA: ["ATIS"] } });
     const { satirlar } = csvSatirlarUret([], chirpProfil,
       { ...defaultOpsiyonlar, airbandEkle: true, airbandSecili, marineEkle: false });
     assert.ok(satirlar.length > 0);

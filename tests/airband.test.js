@@ -13,22 +13,22 @@ describe("secilenAirbandFrekanslari", () => {
   });
 
   it("filters by selected il and airport types", () => {
-    const secim = { iller: ["Istanbul"], havalimanlari: { LTFM: ["ATIS", "Tower"] } };
+    const secim = { iller: ["Istanbul"], havalimanlari: { LTBA: ["ATIS", "Ground"] } };
     const result = secilenAirbandFrekanslari(AIRBAND_FALLBACK, secim);
     assert.ok(result.length > 0);
     for (const f of result) {
-      assert.equal(f.icao, "LTFM");
-      assert.ok(["ATIS", "Tower"].includes(f.tur));
+      assert.equal(f.icao, "LTBA");
+      assert.ok(["ATIS", "Ground"].includes(f.tur));
     }
   });
 
   it("skips airports with no turler selected", () => {
-    const secim = { iller: ["Istanbul"], havalimanlari: { LTFM: [] } };
+    const secim = { iller: ["Istanbul"], havalimanlari: { LTBA: [] } };
     assert.deepEqual(secilenAirbandFrekanslari(AIRBAND_FALLBACK, secim), []);
   });
 
   it("returned items have required fields", () => {
-    const secim = { iller: ["Istanbul"], havalimanlari: { LTFM: ["ATIS"] } };
+    const secim = { iller: ["Istanbul"], havalimanlari: { LTBA: ["ATIS"] } };
     const result = secilenAirbandFrekanslari(AIRBAND_FALLBACK, secim);
     assert.ok(result.length > 0);
     for (const f of result) {
