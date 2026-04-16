@@ -215,7 +215,7 @@ async function handleProtectedDataset(request, env, cacheKey, upstreamUrl, parse
       await resp.body?.cancel();
       throw new Error("HTTP " + resp.status);
     }
-    const parsed = parser(await resp.text());
+    const parsed = parser(await resp.text(), fallback);
     body = { ...parsed, kaynak: "live", guncellenme: new Date().toISOString() };
     liveSucceeded = true;
   } catch (err) {
