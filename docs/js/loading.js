@@ -25,9 +25,13 @@ export function cacheZamaniHesapla(cacheTime, age) {
 
 export function cacheBilgisiGuncelle() {
   const elAmt = document.getElementById("cache-bilgi-amatortelsizcilik");
+  const elTc = document.getElementById("cache-bilgi-telsizcilik");
   const elTr = document.getElementById("cache-bilgi-tarole");
   if (elAmt && state.amatortelsizcilikYuklenmeZamani) {
     elAmt.textContent = `4 saatlik cache — ${kalanCacheSuresi(state.amatortelsizcilikYuklenmeZamani)}`;
+  }
+  if (elTc && state.telsizcilikYuklenmeZamani) {
+    elTc.textContent = `4 saatlik cache — ${kalanCacheSuresi(state.telsizcilikYuklenmeZamani)}`;
   }
   if (elTr && state.taroleYuklenmeZamani) {
     elTr.textContent = `4 saatlik cache — ${kalanCacheSuresi(state.taroleYuklenmeZamani)}`;

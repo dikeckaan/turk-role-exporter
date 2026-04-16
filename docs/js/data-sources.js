@@ -4,7 +4,7 @@
  */
 
 import { state } from "./state.js";
-import { roleleriGetir, taroleRoleleriGetir } from "./api.js";
+import { roleleriGetir, taroleRoleleriGetir, telsizcilikRoleleriGetir } from "./api.js";
 import { normalizeTurkce } from "./utils.js";
 import { kaynakDurumGuncelle, cacheZamaniHesapla, cacheBilgisiGuncelle } from "./loading.js";
 import { bannerGoster, bannerGizle } from "./banner.js";
@@ -46,6 +46,9 @@ export function kaynakAktifMi(kaynak) {
   if (kaynak === "amatortelsizcilik") {
     return document.getElementById("kaynak-amatortelsizcilik")?.checked ?? true;
   }
+  if (kaynak === "telsizcilik") {
+    return document.getElementById("kaynak-telsizcilik")?.checked ?? true;
+  }
   if (kaynak === "tarole") {
     return document.getElementById("kaynak-tarole")?.checked ?? false;
   }
@@ -80,6 +83,9 @@ export function kaynaklariMergeEt() {
   if (kaynakAktifMi("amatortelsizcilik")) {
     for (const r of state.amatortelsizcilikRoleler) ekle(r);
   }
+  if (kaynakAktifMi("telsizcilik")) {
+    for (const r of state.telsizcilikRoleler) ekle(r);
+  }
   if (kaynakAktifMi("tarole")) {
     for (const r of state.taroleRoleler) ekle(r);
   }
@@ -104,6 +110,26 @@ export async function amatortelsizcilikYukle() {
   } catch {
     kaynakDurumGuncelle("amatortelsizcilik", "hata", "✕ Baglanti hatasi");
     bannerGoster("error", "Sunucuya erisilemiyor.");
+    return false;
+  }
+}
+
+export async function telsizcilikYukle() {
+  kaynakDurumGuncelle("telsizcilik", "yukleniyor", "Yukleniyor...");
+  try {
+    const { data, cacheTime, age } = await telsizcilikRoleleriGetir();
+    state.telsizcilikRoleler = data;
+    state.telsizcilikYuklendi = data.length > 0;
+    if (state.telsizcilikYuklendi) {
+      state.telsizcilikYuklenmeZamani = cacheZamaniHesapla(cacheTime, age);
+      kaynakDurumGuncelle("telsizcilik", "basarili", `✓ ${data.length} role yuklendi`);
+      cacheBilgisiGuncelle();
+      return true;
+    }
+    kaynakDurumGuncelle("telsizcilik", "hata", "✕ Veri bulunamadi");
+    return false;
+  } catch {
+    kaynakDurumGuncelle("telsizcilik", "hata", "✕ Baglanti hatasi");
     return false;
   }
 }
@@ -146,6 +172,23 @@ export async function kaynakDegisti(uygulaFn, sehirListeFn, taBolgeFn) {
     kaynakDurumGuncelle("amatortelsizcilik", "kapali", "");
   } else if (state.amatortelsizcilikYuklendi) {
     kaynakDurumGuncelle("amatortelsizcilik", "basarili", `✓ ${state.amatortelsizcilikRoleler.length} role`);
+  }
+
+  if (kaynakAktifMi("telsizcilik")) {
+    if (!state.telsizcilikYuklendi) {
+      telsizcilikYukle().then((ok) => {
+        if (ok) {
+          kaynaklariMergeEt();
+          sehirListeFn();
+          taBolgeFn();
+          uygulaFn();
+        }
+      });
+    } else {
+      kaynakDurumGuncelle("telsizcilik", "basarili", `✓ ${state.telsizcilikRoleler.length} role`);
+    }
+  } else {
+    kaynakDurumGuncelle("telsizcilik", "kapali", "");
   }
 
   if (kaynakAktifMi("tarole")) {

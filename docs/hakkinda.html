@@ -191,6 +191,11 @@
 <td>4 saat</td>
 </tr>
 <tr>
+<td><code>telsizcilik.com</code> (Supabase REST)</td>
+<td>Üçüncü röle kaynağı. <code>sktymkkqjandkwjdqrfs.supabase.co/rest/v1/relays</code> — SPA bundle&#39;ındaki public anon JWT ile tek istekle ~600 röle + lat/lng dönüyor.</td>
+<td>4 saat</td>
+</tr>
+<tr>
 <td><code>ta-role.com</code></td>
 <td>İkincil röle kaynağı. 5 paralel parça (<code>vhf1</code>, <code>vhf2</code>, <code>uhf1</code>, <code>uhf2</code>, <code>dmr</code>) HTML scraping. Talkgroup + dijital simplex&#39;i de buradan çeker.</td>
 <td>4 saat</td>
@@ -356,6 +361,12 @@
 <td>GET</td>
 <td><code>/api/roleler</code></td>
 <td>amatortelsizcilik.com.tr proxy</td>
+<td>—</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/telsizcilik/roleler</code></td>
+<td>telsizcilik.com Supabase proxy</td>
 <td>—</td>
 </tr>
 <tr>

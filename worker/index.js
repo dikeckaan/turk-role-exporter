@@ -6,6 +6,7 @@
  *
  * Endpoints:
  *   GET  /api/roleler            → proxy amatortelsizcilik.com.tr (4hr cache)
+ *   GET  /api/telsizcilik/roleler→ proxy telsizcilik.com Supabase (4hr cache)
  *   GET  /api/tarole/roleler     → dynamic scrape VHF/UHF/DMR pages (4hr cache)
  *   GET  /api/tarole/talkgruplar → scrape talk-gruplar page (4hr cache)
  *   GET  /api/tarole/simplex     → scrape simplex page (4hr cache)
@@ -19,7 +20,7 @@
 import { getAssetFromKV } from "@cloudflare/kv-asset-handler";
 import manifestJSON from "__STATIC_CONTENT_MANIFEST";
 import { AIRBAND_FALLBACK, MARINE_FALLBACK } from "./fallback-data.js";
-import { parseAirbandHtml, parseMarineHtml } from "./scrapers.js";
+import { parseAirbandHtml, parseMarineHtml, normalizeTelsizcilikRow, normalizeTurkish } from "./scrapers.js";
 import { handleStatsRoute } from "./stats.js";
 
 const assetManifest = JSON.parse(manifestJSON);
@@ -36,6 +37,12 @@ const CACHE_TTL = 14400; // 4 hours
 const TAROLE_CACHE_TTL = 14400; // 4 hours
 const TAROLE_BASE = "https://www.ta-role.com";
 const FETCH_TIMEOUT = 20000; // 20s per page
+
+// telsizcilik.com is a Supabase-backed SPA. The anon key is public (shipped in
+// their browser bundle at /assets/index-*.js); we proxy the REST call so we can
+// cache and keep CORS under our control.
+const TELSIZCILIK_URL = "https://sktymkkqjandkwjdqrfs.supabase.co/rest/v1/relays?select=*&limit=1000";
+const TELSIZCILIK_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrdHlta2txamFuZGt3amRxcmZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1NDk1NTEsImV4cCI6MjA4MzEyNTU1MX0.iQOSf87fzE6preeo6aQ1adNW2kkNppH6WxvoGG2k5kg";
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +84,8 @@ export default {
     switch (url.pathname) {
       case "/api/roleler":
         return handleRoleler(request, ctx);
+      case "/api/telsizcilik/roleler":
+        return handleTelsizcilik(request, ctx);
       case "/api/tarole/roleler":
         return handleTaroleRoleler(request, ctx);
       case "/api/tarole/talkgruplar":
@@ -449,24 +458,6 @@ function slugToLabel(slug) {
   }
   // Capitalize first letter
   return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
-/**
- * Normalizes Turkish characters to ASCII for consistent matching.
- * İ→i, ı→i, Ş→s, ş→s, Ç→c, ç→c, Ğ→g, ğ→g, Ö→o, ö→o, Ü→u, ü→u
- * NOTE: Keep in sync with normalizeTurkce() in docs/js/utils.js (v1.1)
- */
-function normalizeTurkish(str) {
-  return str
-    .replace(/\u0130/g, "i")   // İ (Turkish capital I with dot)
-    .replace(/\u0131/g, "i")   // ı (Turkish lowercase dotless i)
-    .replace(/[\u015e\u015f]/g, "s")
-    .replace(/[\u00c7\u00e7]/g, "c")
-    .replace(/[\u011e\u011f]/g, "g")
-    .replace(/[\u00d6\u00f6]/g, "o")
-    .replace(/[\u00dc\u00fc]/g, "u")
-    .replace(/\u0307/g, "")    // combining dot above (from İ.toLowerCase())
-    .toLowerCase();
 }
 
 /**
@@ -865,6 +856,37 @@ async function handleTaroleSimplex(request, ctx) {
     const html = await fetchPage(TAROLE_BASE + "/simplex.html", 1);
     if (!html) return { uhf: [], vhf: [] };
     return parseSimplex(html);
+  });
+}
+
+async function handleTelsizcilik(request, ctx) {
+  return cachedHandler("telsizcilik-relays", ctx, async () => {
+    let resp;
+    try {
+      resp = await fetch(TELSIZCILIK_URL, {
+        headers: {
+          apikey: TELSIZCILIK_ANON_KEY,
+          Authorization: `Bearer ${TELSIZCILIK_ANON_KEY}`,
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch {
+      return [];
+    }
+    if (!resp.ok) return [];
+    let rows;
+    try {
+      rows = await resp.json();
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(rows)) return [];
+    const out = [];
+    for (const r of rows) {
+      const rec = normalizeTelsizcilikRow(r);
+      if (rec) out.push(rec);
+    }
+    return out;
   });
 }
 

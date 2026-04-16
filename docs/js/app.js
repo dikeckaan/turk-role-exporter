@@ -10,6 +10,7 @@ import {
   kaynakAktifMi,
   kaynaklariMergeEt,
   amatortelsizcilikYukle,
+  telsizcilikYukle,
   taroleYukle,
   kaynakDegisti,
 } from "./data-sources.js";
@@ -102,8 +103,11 @@ async function basla() {
   bannerRetryCallbackAta(async () => {
     bannerGizle();
     state.amatortelsizcilikYuklendi = false;
+    state.telsizcilikYuklendi = false;
     state.taroleYuklendi = false;
-    await amatortelsizcilikYukle();
+    const tasks = [amatortelsizcilikYukle()];
+    if (kaynakAktifMi("telsizcilik")) tasks.push(telsizcilikYukle());
+    await Promise.all(tasks);
     kaynaklariMergeEt();
     sehirListesiDoldur();
     taBolgesiDoldur();
@@ -121,7 +125,9 @@ async function basla() {
     }
   });
 
-  await amatortelsizcilikYukle();
+  const bootTasks = [amatortelsizcilikYukle()];
+  if (kaynakAktifMi("telsizcilik")) bootTasks.push(telsizcilikYukle());
+  await Promise.all(bootTasks);
   kaynaklariMergeEt();
   sehirListesiDoldur();
   taBolgesiDoldur();
@@ -414,7 +420,7 @@ function dinleyicileriKur() {
     if (e.key === "Escape") sifreModaliKapat();
   });
 
-  ["kaynak-amatortelsizcilik", "kaynak-tarole"].forEach((id) => {
+  ["kaynak-amatortelsizcilik", "kaynak-telsizcilik", "kaynak-tarole"].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       kaynakDegisti(uygula, sehirListesiDoldur, taBolgesiDoldur);
     });

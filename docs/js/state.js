@@ -7,6 +7,7 @@
 export const state = {
   amatortelsizcilikRoleler: [],
   taroleRoleler: [],
+  telsizcilikRoleler: [],
   birlesikRoleler: [],
   filtrelenmisRoleler: [],
   seciliCihaz: "quansheng-uv-k5-f4hwn",
@@ -22,8 +23,10 @@ export const state = {
 
   amatortelsizcilikYuklendi: false,
   taroleYuklendi: false,
+  telsizcilikYuklendi: false,
   amatortelsizcilikYuklenmeZamani: null,
   taroleYuklenmeZamani: null,
+  telsizcilikYuklenmeZamani: null,
 };
 
 export const CACHE_SURESI_MS = 4 * 60 * 60 * 1000; // 4 saat

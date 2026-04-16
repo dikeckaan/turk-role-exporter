@@ -34,6 +34,25 @@ export async function roleleriGetir() {
 }
 
 /**
+ * Fetches repeater data from telsizcilik.com (Supabase) via the worker proxy.
+ * Returns empty list on failure — no fallback yet.
+ * @returns {{ data: Array, cacheTime: string|null, age: number }}
+ */
+export async function telsizcilikRoleleriGetir() {
+  try {
+    const response = await fetch(`${WORKER_BASE}/api/telsizcilik/roleler`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) return { data: [], cacheTime: null, age: 0 };
+    const { cacheTime, age } = cacheMeta(response);
+    const data = await response.json();
+    return { data: Array.isArray(data) ? data : [], cacheTime, age };
+  } catch {
+    return { data: [], cacheTime: null, age: 0 };
+  }
+}
+
+/**
  * Fetches repeater data from ta-role.com via the worker scraper.
  * Calls 5 parallel part endpoints to stay under CF Workers' subrequest limit.
  * @returns {{ data: Array, cacheTime: string|null, age: number }}

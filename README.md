@@ -57,6 +57,7 @@ Statik site `docs/` klasöründen GitHub Pages üzerinden yayınlanır:
 | Kaynak | Açıklama | Cache |
 |---|---|---|
 | `amatortelsizcilik.com.tr/roleler/data.json` | Birincil röle JSON API. **Upstream login arkasında**, anonim erişim 500 dönüyor — fallback aktif. | 4 saat |
+| `telsizcilik.com` (Supabase REST) | Üçüncü röle kaynağı. `sktymkkqjandkwjdqrfs.supabase.co/rest/v1/relays` — SPA bundle'ındaki public anon JWT ile tek istekle ~600 röle + lat/lng dönüyor. | 4 saat |
 | `ta-role.com` | İkincil röle kaynağı. 5 paralel parça (`vhf1`, `vhf2`, `uhf1`, `uhf2`, `dmr`) HTML scraping. Talkgroup + dijital simplex'i de buradan çeker. | 4 saat |
 | `ta1dx.qsl.net/amator/bandmarine.htm` | **Marine VHF band** canlı scrape (regex tabanlı HTML parse, windows-1254 kaynak). SAR + Sahil radyoları bölümleri ayrı sayfalarda yaşadığı için `MARINE_FALLBACK`'ten gelir. | 4 saat |
 | `ourairports.com` CSV dataset | **Airband** için havalimanı + frekans verisi. Runtime'da çekilmez; `npm run update-airband` ile periyodik olarak `worker/fallback-data.js`'e gömülür. | — |
@@ -123,6 +124,7 @@ Statik site `docs/` klasöründen GitHub Pages üzerinden yayınlanır:
 | Method | Path | Açıklama | Auth |
 |---|---|---|---|
 | GET  | `/api/roleler` | amatortelsizcilik.com.tr proxy | — |
+| GET  | `/api/telsizcilik/roleler` | telsizcilik.com Supabase proxy | — |
 | GET  | `/api/tarole/roleler?part=…` | ta-role.com VHF/UHF/DMR scraper | — |
 | GET  | `/api/tarole/talkgruplar` | DMR talk grupları | — |
 | GET  | `/api/tarole/simplex` | Dijital simplex frekansları | — |
