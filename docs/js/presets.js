@@ -3,8 +3,55 @@
  * Save and load filter+option presets to localStorage.
  */
 
+import { state } from "./state.js";
+
 const STORAGE_KEY = "roleExporterPresets";
 const MAX_PRESETS = 10;
+const PRESET_VERSION = 2;
+
+/**
+ * Serialize a preset-like object to JSON string with the current schema.
+ * Missing fields default to safe empties so partial inputs are fine.
+ */
+export function presetSerialize(obj) {
+  return JSON.stringify({
+    version: PRESET_VERSION,
+    airbandSecim: obj.airbandSecim || { iller: [], havalimanlari: {} },
+    marineSecim:  obj.marineSecim  || { vhf: [], sar: [], sahil: [] },
+    opsiyonlar: obj.opsiyonlar || {},
+    filtreler:  obj.filtreler  || {},
+    cihaz:      obj.cihaz || null,
+    ad:         obj.ad || null,
+    tarih:      obj.tarih || null,
+  });
+}
+
+/**
+ * Deserialize a preset JSON string (or object) into a normalized preset.
+ * Tolerates v1 presets missing airband/marine fields — they default to empty.
+ */
+export function presetDeserialize(raw) {
+  const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  const airband = parsed.airbandSecim || {};
+  const marine  = parsed.marineSecim  || {};
+  return {
+    airbandSecim: {
+      iller: Array.isArray(airband.iller) ? airband.iller : [],
+      havalimanlari: (airband.havalimanlari && typeof airband.havalimanlari === "object")
+        ? airband.havalimanlari : {},
+    },
+    marineSecim: {
+      vhf:   Array.isArray(marine.vhf)   ? marine.vhf   : [],
+      sar:   Array.isArray(marine.sar)   ? marine.sar   : [],
+      sahil: Array.isArray(marine.sahil) ? marine.sahil : [],
+    },
+    opsiyonlar: parsed.opsiyonlar || {},
+    filtreler:  parsed.filtreler  || {},
+    cihaz:      parsed.cihaz || null,
+    ad:         parsed.ad || null,
+    tarih:      parsed.tarih || null,
+  };
+}
 
 function getPresets() {
   try {
@@ -20,13 +67,15 @@ function savePresets(presets) {
 
 export function presetKaydet(ad, filtreTopla, opsiyonTopla, seciliCihaz) {
   const presets = getPresets();
-  const preset = {
+  const preset = JSON.parse(presetSerialize({
     ad,
     tarih: new Date().toISOString(),
     cihaz: typeof seciliCihaz === "function" ? seciliCihaz() : seciliCihaz,
     filtreler: filtreTopla(),
     opsiyonlar: opsiyonTopla(),
-  };
+    airbandSecim: state.airbandSecim,
+    marineSecim:  state.marineSecim,
+  }));
   // Replace existing with same name, or add new
   const idx = presets.findIndex(p => p.ad === ad);
   if (idx >= 0) presets[idx] = preset;
@@ -46,7 +95,8 @@ export function presetListesi() {
 }
 
 export function presetYukle(ad) {
-  return getPresets().find(p => p.ad === ad) || null;
+  const p = getPresets().find(p => p.ad === ad);
+  return p ? presetDeserialize(p) : null;
 }
 
 export function presetUiKur(containerEl, filtreTopla, opsiyonTopla, seciliCihaz, onLoad) {
@@ -91,7 +141,7 @@ export function presetUiKur(containerEl, filtreTopla, opsiyonTopla, seciliCihaz,
       loadBtn.textContent = p.ad;
       loadBtn.title = `Cihaz: ${p.cihaz} — ${new Date(p.tarih).toLocaleDateString("tr-TR")}`;
       loadBtn.addEventListener("click", () => {
-        onLoad(p);
+        onLoad(presetDeserialize(p));
       });
 
       const delBtn = document.createElement("button");

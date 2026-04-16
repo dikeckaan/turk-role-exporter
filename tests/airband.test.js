@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { AIRBAND_FALLBACK } from "../worker/fallback-data.js";
 import { secilenAirbandFrekanslari } from "../docs/js/airband-ui.js";
+import { presetSerialize, presetDeserialize } from "../docs/js/presets.js";
 
 describe("secilenAirbandFrekanslari", () => {
   it("returns empty when no iller selected", () => {
@@ -51,5 +52,35 @@ describe("secilenAirbandFrekanslari dedup", () => {
     const result = secilenAirbandFrekanslari(dup,
       { iller: ["A", "B"], havalimanlari: { LTXX: ["Tower"] } });
     assert.equal(result.length, 1);
+  });
+});
+
+describe("preset airband/marine roundtrip", () => {
+  it("preserves airbandSecim and marineSecim", () => {
+    const original = {
+      airbandSecim: { iller: ["Istanbul"], havalimanlari: { LTFM: ["ATIS"] } },
+      marineSecim:  { vhf: ["CH16"], sar: [], sahil: [] },
+    };
+    const back = presetDeserialize(presetSerialize(original));
+    assert.deepEqual(back.airbandSecim, original.airbandSecim);
+    assert.deepEqual(back.marineSecim,  original.marineSecim);
+  });
+
+  it("deserialize tolerates missing new fields (v1 preset)", () => {
+    const v1 = JSON.stringify({ version: 1, opsiyonlar: {} });
+    const back = presetDeserialize(v1);
+    assert.deepEqual(back.airbandSecim, { iller: [], havalimanlari: {} });
+    assert.deepEqual(back.marineSecim,  { vhf: [], sar: [], sahil: [] });
+  });
+
+  it("deserialize accepts object input in addition to string", () => {
+    const back = presetDeserialize({ version: 2, airbandSecim: { iller: ["X"], havalimanlari: {} } });
+    assert.deepEqual(back.airbandSecim, { iller: ["X"], havalimanlari: {} });
+  });
+
+  it("serialize writes version 2", () => {
+    const serialized = presetSerialize({});
+    const parsed = JSON.parse(serialized);
+    assert.equal(parsed.version, 2);
   });
 });
