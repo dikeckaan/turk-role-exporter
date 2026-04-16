@@ -158,6 +158,6 @@ export function renderStatsPanel(containerId, stats, visitorNumber) {
 
   const note = document.createElement("div");
   note.className = "visitor-stat-note";
-  note.textContent = "IP ve kisisel veri saklanmaz. Sayaclar anonim, session basina bir kere artar.";
+  note.textContent = "Sayaclar anonim tutulur.";
   host.appendChild(note);
 }
