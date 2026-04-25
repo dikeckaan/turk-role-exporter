@@ -7,7 +7,6 @@
 import { kanalAdiOlustur, txFrekansHesapla, isDijital } from "./utils.js";
 import {
   fmIstasyonlariGetir,
-  DIGITAL_SIMPLEX,
 } from "./frekanslar.js";
 
 function csvEscape(val) {
@@ -133,20 +132,7 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
     }
   }
 
-  // Digital Simplex
-  if (opsiyonlar.simplexEkle) {
-    for (const sx of [...DIGITAL_SIMPLEX.uhf, ...DIGITAL_SIMPLEX.vhf]) {
-      const col = boslukSatir(n);
-      col[0] = String(loc++);
-      const modK = sx.mod.replace("-", "").slice(0, 4);
-      const band = parseFloat(sx.frek) > 200 ? "U" : "V";
-      col[1] = `${modK} ${band}SX`.slice(0, maxAd); col[2] = parseFloat(sx.frek).toFixed(6);
-      col[3] = ""; col[4] = "0.000000"; col[5] = ""; col[6] = "88.5"; col[7] = "88.5";
-      col[8] = "023"; col[9] = "NN"; col[10] = "023";
-      col[11] = "Tone->Tone"; col[12] = "FM"; col[13] = "12.50"; col[14] = ""; col[15] = guc;
-      rows.push(col);
-    }
-  }
+  // Simplex (FM + Dijital) — Task 6'da yeniden eklenecek
 
   // Empty analog
   if (opsiyonlar.bosAnalogAdet > 0) {
@@ -313,15 +299,7 @@ function opengd77SatirlarUret(roleler, profil, opsiyonlar) {
     }
   }
 
-  // Digital Simplex
-  if (opsiyonlar.simplexEkle) {
-    for (const sx of [...DIGITAL_SIMPLEX.uhf, ...DIGITAL_SIMPLEX.vhf]) {
-      const f = parseFloat(sx.frek);
-      const band = f > 200 ? "U" : "V";
-      const modK = sx.mod.replace("-", "").slice(0, 4);
-      rows.push(opengd77Satir(profil, loc++, `${modK} ${band}SX`.slice(0, maxAd), f, f, true, null, false, gucLabel));
-    }
-  }
+  // Simplex (FM + Dijital) — Task 8'de yeniden eklenecek
 
   // Empty analog
   if (opsiyonlar.bosAnalogAdet > 0) {

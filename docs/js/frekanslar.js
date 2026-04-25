@@ -1,4 +1,5 @@
 import { normalizeTurkce } from "./utils.js";
+import { secilenSimplexFrekanslari } from "./simplex-ui.js";
 
 /**
  * frekanslar.js
@@ -416,22 +417,76 @@ export const TALK_GRUPLARI = [
 ];
 
 // ---------------------------------------------------------------------------
-// Digital Simplex Frequencies
+// FM Analog Simplex Frequencies (Türkiye band plani)
 // ---------------------------------------------------------------------------
 
-export const DIGITAL_SIMPLEX = {
-  uhf: [
-    { frek: 433.4375, mod: "C4FM", param: "TX 00 RX 00", aciklama: "C4FM Simplex UHF" },
-    { frek: 433.4500, mod: "DMR", param: "TG 99 CC1 TS1", aciklama: "DMR Simplex UHF" },
-    { frek: 433.4500, mod: "NXDN", param: "TG 9 6.25kHz RAN 1", aciklama: "NXDN Simplex UHF" },
-    { frek: 433.4625, mod: "D-STAR", param: "", aciklama: "D-STAR Simplex UHF" },
-  ],
-  vhf: [
-    { frek: 144.5375, mod: "C4FM", param: "TX 00 RX 00", aciklama: "C4FM Simplex VHF" },
-    { frek: 144.5500, mod: "DMR", param: "TG 99 CC1 TS1", aciklama: "DMR Simplex VHF" },
-    { frek: 144.5500, mod: "NXDN", param: "TG 9 6.25kHz RAN 1", aciklama: "NXDN Simplex VHF" },
-    { frek: 144.5625, mod: "D-STAR", param: "", aciklama: "D-STAR Simplex VHF" },
-  ],
+export const FM_SIMPLEX = {
+  vhf: {
+    id: "vhf",
+    ad: "VHF FM Simplex",
+    frekanslar: [
+      { kanal: "V01", frek: 145.500,  ad: "VHF Calling", onemli: true,  mod: "FM"  },
+      { kanal: "VSB", frek: 144.300,  ad: "SSB Calling", onemli: true,  mod: "USB" },
+      { kanal: "V02", frek: 145.2125, ad: "Simplex 1",                  mod: "FM"  },
+      { kanal: "V03", frek: 145.225,  ad: "Simplex 2",                  mod: "FM"  },
+      { kanal: "V04", frek: 145.2375, ad: "Simplex 3",                  mod: "FM"  },
+      { kanal: "V05", frek: 145.250,  ad: "Simplex 4",                  mod: "FM"  },
+      { kanal: "V06", frek: 145.2625, ad: "Simplex 5",                  mod: "FM"  },
+      { kanal: "V07", frek: 145.275,  ad: "Simplex 6",                  mod: "FM"  },
+      { kanal: "V08", frek: 145.2875, ad: "Simplex 7",                  mod: "FM"  },
+      { kanal: "V09", frek: 145.300,  ad: "Simplex 8",                  mod: "FM"  },
+      { kanal: "V10", frek: 145.3125, ad: "Simplex 9",                  mod: "FM"  },
+      { kanal: "V11", frek: 145.325,  ad: "Simplex 10",                 mod: "FM"  },
+      { kanal: "V12", frek: 145.3375, ad: "Simplex 11",                 mod: "FM"  },
+      { kanal: "V13", frek: 145.350,  ad: "Simplex 12",                 mod: "FM"  },
+      { kanal: "V14", frek: 145.3625, ad: "Simplex 13",                 mod: "FM"  },
+      { kanal: "V15", frek: 145.375,  ad: "Simplex 14",                 mod: "FM"  },
+      { kanal: "V16", frek: 145.3875, ad: "Simplex 15",                 mod: "FM"  },
+    ],
+  },
+  uhf: {
+    id: "uhf",
+    ad: "UHF FM Simplex",
+    frekanslar: [
+      { kanal: "U01", frek: 433.500,  ad: "UHF Calling", onemli: true, mod: "FM"  },
+      { kanal: "USB", frek: 432.500,  ad: "UHF SSB",     onemli: true, mod: "USB" },
+      { kanal: "U02", frek: 433.4000, ad: "Simplex 1",                 mod: "FM"  },
+      { kanal: "U03", frek: 433.4125, ad: "Simplex 2",                 mod: "FM"  },
+      { kanal: "U04", frek: 433.425,  ad: "Simplex 3",                 mod: "FM"  },
+      { kanal: "U05", frek: 433.4625, ad: "Simplex 4",                 mod: "FM"  },
+      { kanal: "U06", frek: 433.475,  ad: "Simplex 5",                 mod: "FM"  },
+      { kanal: "U07", frek: 433.4875, ad: "Simplex 6",                 mod: "FM"  },
+      { kanal: "U08", frek: 434.000,  ad: "Simplex 7",                 mod: "FM"  },
+      { kanal: "U09", frek: 434.500,  ad: "Simplex 8",                 mod: "FM"  },
+    ],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Dijital Simplex Frequencies
+// ---------------------------------------------------------------------------
+
+export const DIJITAL_SIMPLEX = {
+  vhf: {
+    id: "vhf",
+    ad: "VHF Dijital Simplex",
+    frekanslar: [
+      { kanal: "DV1", frek: 144.5375, mod: "C4FM",   ad: "C4FM VHF" },
+      { kanal: "DV2", frek: 144.5500, mod: "DMR",    ad: "DMR VHF",   param: "TG99 CC1 TS1" },
+      { kanal: "DV3", frek: 144.5500, mod: "NXDN",   ad: "NXDN VHF",  param: "TG9 RAN1" },
+      { kanal: "DV4", frek: 144.5625, mod: "D-STAR", ad: "DSTAR VHF" },
+    ],
+  },
+  uhf: {
+    id: "uhf",
+    ad: "UHF Dijital Simplex",
+    frekanslar: [
+      { kanal: "DU1", frek: 433.4375, mod: "C4FM",   ad: "C4FM UHF" },
+      { kanal: "DU2", frek: 433.4500, mod: "DMR",    ad: "DMR UHF",   param: "TG99 CC1 TS1" },
+      { kanal: "DU3", frek: 433.4500, mod: "NXDN",   ad: "NXDN UHF",  param: "TG9 RAN1" },
+      { kanal: "DU4", frek: 433.4625, mod: "D-STAR", ad: "DSTAR UHF" },
+    ],
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -451,8 +506,13 @@ export function ekKanalSayisi(opsiyonlar) {
   if (opsiyonlar.marineEkle && opsiyonlar.marineSecili) {
     toplam += opsiyonlar.marineSecili.length;
   }
-  if (opsiyonlar.simplexEkle) {
-    toplam += DIGITAL_SIMPLEX.uhf.length + DIGITAL_SIMPLEX.vhf.length;
+  if (opsiyonlar.fmSimplexEkle) {
+    const fm = secilenSimplexFrekanslari(FM_SIMPLEX, opsiyonlar.fmSimplexSecim);
+    toplam += fm.length;
+  }
+  if (opsiyonlar.dijitalSimplexEkle) {
+    const dij = secilenSimplexFrekanslari(DIJITAL_SIMPLEX, opsiyonlar.dijitalSimplexSecim);
+    toplam += dij.length;
   }
   toplam += (opsiyonlar.bosAnalogAdet || 0);
   toplam += (opsiyonlar.bosDijitalAdet || 0);
@@ -475,11 +535,13 @@ export function kanalDagilimi(roleCount, opsiyonlar) {
   if (opsiyonlar.marineEkle && opsiyonlar.marineSecili) {
     items.push({ ad: "Denizcilik", sayi: opsiyonlar.marineSecili.length });
   }
-  if (opsiyonlar.simplexEkle) {
-    items.push({
-      ad: "Simplex",
-      sayi: DIGITAL_SIMPLEX.uhf.length + DIGITAL_SIMPLEX.vhf.length,
-    });
+  if (opsiyonlar.fmSimplexEkle) {
+    const n = secilenSimplexFrekanslari(FM_SIMPLEX, opsiyonlar.fmSimplexSecim).length;
+    if (n > 0) items.push({ ad: "FM Simplex", sayi: n });
+  }
+  if (opsiyonlar.dijitalSimplexEkle) {
+    const n = secilenSimplexFrekanslari(DIJITAL_SIMPLEX, opsiyonlar.dijitalSimplexSecim).length;
+    if (n > 0) items.push({ ad: "Dijital Simplex", sayi: n });
   }
   if (opsiyonlar.bosAnalogAdet > 0) {
     items.push({ ad: "Bos Analog", sayi: opsiyonlar.bosAnalogAdet });
