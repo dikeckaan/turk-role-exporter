@@ -9,7 +9,6 @@
  *   GET  /api/telsizcilik/roleler→ proxy telsizcilik.com Supabase (4hr cache)
  *   GET  /api/tarole/roleler     → dynamic scrape VHF/UHF/DMR pages (4hr cache)
  *   GET  /api/tarole/talkgruplar → scrape talk-gruplar page (4hr cache)
- *   GET  /api/tarole/simplex     → scrape simplex page (4hr cache)
  *   GET  /api/tarole/debug       → diagnostic info (no cache)
  *   POST /api/auth/verify        → password verification, returns token
  *   GET  /api/protected/airband  → airband frequencies (token required)
@@ -90,8 +89,6 @@ export default {
         return handleTaroleRoleler(request, ctx);
       case "/api/tarole/talkgruplar":
         return handleTaroleTalkGruplar(request, ctx);
-      case "/api/tarole/simplex":
-        return handleTaroleSimplex(request, ctx);
       case "/api/tarole/debug":
         return handleTaroleDebug();
       case "/api/auth/verify":
@@ -678,43 +675,6 @@ function parseTalkGruplar(html) {
   return gruplar;
 }
 
-function parseSimplex(html) {
-  const channels = { uhf: [], vhf: [] };
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]*>/g, "\n");
-
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-  let band = null;
-
-  for (const line of lines) {
-    const upper = line.toUpperCase();
-    if (upper === "UHF") { band = "uhf"; continue; }
-    if (upper === "VHF") { band = "vhf"; continue; }
-    if (!band) continue;
-
-    const match = line.match(/^(\d{3}\.\d{3,5})\s+(.+)$/);
-    if (!match) continue;
-
-    const frek = parseFloat(match[1]);
-    const desc = match[2].trim();
-    let mod = "FM";
-    if (desc.includes("C4FM")) mod = "C4FM";
-    else if (desc.includes("DMR")) mod = "DMR";
-    else if (desc.includes("NXDN")) mod = "NXDN";
-    else if (desc.includes("D-STAR")) mod = "D-STAR";
-
-    channels[band].push({
-      frek: frek.toFixed(4),
-      mod,
-      param: desc,
-      aciklama: `${mod} Simplex ${band.toUpperCase()}`,
-    });
-  }
-  return channels;
-}
-
 // ─── Batch fetch ─────────────────────────────────────────────────────────────
 
 async function batchFetch(items, batchSize) {
@@ -848,14 +808,6 @@ async function handleTaroleTalkGruplar(request, ctx) {
     const html = await fetchPage(TAROLE_BASE + "/talk-gruplar.html", 1);
     if (!html) return [];
     return parseTalkGruplar(html);
-  });
-}
-
-async function handleTaroleSimplex(request, ctx) {
-  return cachedHandler("simplex", ctx, async () => {
-    const html = await fetchPage(TAROLE_BASE + "/simplex.html", 1);
-    if (!html) return { uhf: [], vhf: [] };
-    return parseSimplex(html);
   });
 }
 
