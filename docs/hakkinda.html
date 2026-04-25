@@ -156,7 +156,7 @@
 <p>Temel özellikler:</p>
 <ul>
 <li>TA bölgesi, şehir, ilçe, bant (VHF/UHF), mod (analog/dijital), aktiflik, lisans, QRZ skoruna göre filtre</li>
-<li>Ek kanallar: PMR, dPMR, FM Radyo, dijital simplex</li>
+<li>Ek kanallar: PMR, dPMR, FM Radyo, FM simplex, dijital simplex (kanal-kanal seçilebilir)</li>
 <li>Leaflet harita, sürüklenebilir röle pinleri</li>
 <li>Önizleme tablosu, hücre editi, undo/redo, arama</li>
 <li>Önayar (preset) kaydetme/yükleme (v2 şema: airband/marine seçimleri dahil)</li>
@@ -199,7 +199,7 @@
 </tr>
 <tr>
 <td><code>ta-role.com</code></td>
-<td>İkincil röle kaynağı. 5 paralel parça (<code>vhf1</code>, <code>vhf2</code>, <code>uhf1</code>, <code>uhf2</code>, <code>dmr</code>) HTML scraping. Talkgroup + dijital simplex&#39;i de buradan çeker.</td>
+<td>İkincil röle kaynağı. 5 paralel parça (<code>vhf1</code>, <code>vhf2</code>, <code>uhf1</code>, <code>uhf2</code>, <code>dmr</code>) HTML scraping. Talk-grupları buradan çeker (dijital simplex artık istemci tarafında statik veridir).</td>
 <td>4 saat</td>
 </tr>
 <tr>
@@ -381,12 +381,6 @@
 <td>GET</td>
 <td><code>/api/tarole/talkgruplar</code></td>
 <td>DMR talk grupları</td>
-<td>—</td>
-</tr>
-<tr>
-<td>GET</td>
-<td><code>/api/tarole/simplex</code></td>
-<td>Dijital simplex frekansları</td>
 <td>—</td>
 </tr>
 <tr>
