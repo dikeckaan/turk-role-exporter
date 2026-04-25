@@ -315,6 +315,30 @@ function csvTabloCallbacks() {
       }
       csvTabloYenile();
     },
+    onRangeBosalt: (r1, r2, c1, c2) => {
+      undoKaydet(state.csvSatirlar);
+      for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+          if (state.csvSatirlar[r]) state.csvSatirlar[r][c] = "";
+        }
+      }
+      csvTabloYenile();
+    },
+    onRangePaste: (rowStart, colStart, tsvText) => {
+      const lines = tsvText.replace(/\r\n/g, "\n").split("\n");
+      undoKaydet(state.csvSatirlar);
+      for (let i = 0; i < lines.length; i++) {
+        const r = rowStart + i;
+        if (!state.csvSatirlar[r]) continue;
+        const cells = lines[i].split("\t");
+        for (let j = 0; j < cells.length; j++) {
+          const c = colStart + j;
+          if (c >= state.csvSatirlar[r].length) continue;
+          state.csvSatirlar[r][c] = cells[j];
+        }
+      }
+      csvTabloYenile();
+    },
   };
 }
 

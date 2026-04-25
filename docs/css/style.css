@@ -454,6 +454,27 @@ select option {
 .table-container {
   overflow-x: auto;
   border-radius: 8px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Sticky header + first column (Excel-style frozen panes) */
+#onizleme-tablosu thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface-2);
+}
+#onizleme-tablosu tbody td:first-child,
+#onizleme-tablosu thead th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 2;
+}
+#onizleme-tablosu thead th:first-child {
+  z-index: 4;
+  background: var(--surface-2);
 }
 
 /* ── Table ───────────────────────────────────────────────── */
@@ -1240,9 +1261,21 @@ input[type="number"]:focus {
 .tr-drag-over { box-shadow: inset 0 2px 0 0 var(--accent); }
 
 /* Sortable header */
-.th-sortable { cursor: pointer; user-select: none; }
+.th-sortable { cursor: pointer; user-select: none; position: relative; }
 .th-sortable:hover { background: rgba(255,255,255,0.04); }
 .th-sort-ind { color: var(--accent); font-size: 0.7rem; }
+
+/* Column resize handle */
+.th-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+}
+.th-resize-handle:hover { background: var(--accent); opacity: 0.6; }
 
 /* Find & Replace modal */
 .find-replace-overlay {
@@ -1298,6 +1331,12 @@ input[type="number"]:focus {
 .hucre-vurgu {
   background: rgba(255, 215, 0, 0.25) !important;
   transition: background 0.3s;
+}
+
+/* Range selection (shift+click) */
+#onizleme-tablosu td.hucre-range {
+  background: rgba(74, 144, 226, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(74, 144, 226, 0.5);
 }
 
 .td-sira {

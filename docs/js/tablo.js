@@ -9,18 +9,45 @@ let sayfaBoyutu = 100;
 let sortKolon = null;   // 0-based index into basliklar (the data columns, NOT including # and Islem)
 let sortYon = null;     // "asc" | "desc" | null
 
-function kolonNumerikMi(satirlar, ci) {
-  let sayisal = 0;
-  let toplam = 0;
-  for (const row of satirlar) {
-    const v = (row[ci] ?? "").toString().trim();
-    if (v === "") continue;
-    toplam++;
-    if (!isNaN(parseFloat(v)) && isFinite(Number(v))) sayisal++;
-    if (toplam >= 10) break;
-  }
-  return toplam > 0 && sayisal === toplam;
+const KOLON_GENISLIK_KEY = "tabloKolonGenislikleri";
+function genisliklerYukle() {
+  try { return JSON.parse(localStorage.getItem(KOLON_GENISLIK_KEY)) || {}; }
+  catch { return {}; }
 }
+function genisliklerKaydet(g) {
+  try { localStorage.setItem(KOLON_GENISLIK_KEY, JSON.stringify(g)); } catch {}
+}
+
+// Range selection state (cell rectangle, inclusive on both corners)
+let rangeAncor = null;   // { rowIdx, colIdx }
+let rangeFocus = null;   // { rowIdx, colIdx }
+let rangeCallbacks = null;
+
+function rangeTemizle() {
+  rangeAncor = null;
+  rangeFocus = null;
+  document.querySelectorAll("#onizleme-tablosu td.hucre-range").forEach((td) => td.classList.remove("hucre-range"));
+}
+
+function rangeUygula() {
+  document.querySelectorAll("#onizleme-tablosu td.hucre-range").forEach((td) => td.classList.remove("hucre-range"));
+  if (!rangeAncor || !rangeFocus) return;
+  const r1 = Math.min(rangeAncor.rowIdx, rangeFocus.rowIdx);
+  const r2 = Math.max(rangeAncor.rowIdx, rangeFocus.rowIdx);
+  const c1 = Math.min(rangeAncor.colIdx, rangeFocus.colIdx);
+  const c2 = Math.max(rangeAncor.colIdx, rangeFocus.colIdx);
+  const tablo = document.getElementById("onizleme-tablosu");
+  if (!tablo) return;
+  for (let r = r1; r <= r2; r++) {
+    const tr = tablo.querySelector(`tbody tr[data-orig-idx="${r}"]`);
+    if (!tr) continue;
+    for (let c = c1; c <= c2; c++) {
+      const td = tr.children[c + 1]; // +1 for # column
+      if (td) td.classList.add("hucre-range");
+    }
+  }
+}
+
 
 /**
  * Renders editable CSV preview table with pagination.
@@ -31,6 +58,7 @@ function kolonNumerikMi(satirlar, ci) {
 export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
   const tablo = document.getElementById("onizleme-tablosu");
   if (!tablo) return;
+  rangeCallbacks = { satirlar, callbacks };
 
   // Rebuild headers dynamically
   const thead = tablo.querySelector("thead");
@@ -43,17 +71,57 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     thSira.textContent = "#";
     tr.appendChild(thSira);
 
+    const genislikler = genisliklerYukle();
     basliklar.forEach((h, ci) => {
       const th = document.createElement("th");
       th.className = "th-sortable";
-      th.textContent = h;
+      const baslikSpan = document.createElement("span");
+      baslikSpan.textContent = h;
+      th.appendChild(baslikSpan);
       if (sortKolon === ci && sortYon) {
         const ind = document.createElement("span");
         ind.className = "th-sort-ind";
         ind.textContent = sortYon === "asc" ? " \u25B2" : " \u25BC";
         th.appendChild(ind);
       }
-      th.addEventListener("click", () => {
+      if (genislikler[h]) th.style.width = genislikler[h] + "px";
+
+      // Resize handle
+      const handle = document.createElement("div");
+      handle.className = "th-resize-handle";
+      handle.title = "Cift tikla: otomatik genislik";
+      handle.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startWidth = th.offsetWidth;
+        const move = (ev) => {
+          const w = Math.max(40, startWidth + (ev.clientX - startX));
+          th.style.width = w + "px";
+        };
+        const up = () => {
+          document.removeEventListener("mousemove", move);
+          document.removeEventListener("mouseup", up);
+          const g = genisliklerYukle();
+          g[h] = th.offsetWidth;
+          genisliklerKaydet(g);
+        };
+        document.addEventListener("mousemove", move);
+        document.addEventListener("mouseup", up);
+      });
+      handle.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        th.style.width = "";
+        const g = genisliklerYukle();
+        delete g[h];
+        genisliklerKaydet(g);
+      });
+      th.appendChild(handle);
+
+      th.addEventListener("click", (e) => {
+        // Ignore clicks that originated on the resize handle
+        if (e.target.classList.contains("th-resize-handle")) return;
         if (sortKolon === ci) {
           sortYon = sortYon === "asc" ? "desc" : sortYon === "desc" ? null : "asc";
           if (sortYon === null) sortKolon = null;
@@ -64,8 +132,6 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
         if (callbacks?.onSortDegistir && sortKolon !== null) {
           callbacks.onSortDegistir(sortKolon, sortYon);
         } else {
-          // Sort cleared — just re-render; original order is preserved by callback never having mutated it,
-          // but if it did mutate, undo can restore it.
           csvTabloGuncelle(basliklar, satirlar, callbacks);
         }
       });
@@ -141,8 +207,23 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       span.setAttribute("aria-label", basliklar[ci] || `Sutun ${ci + 1}`);
 
       const orijinalDeger = row[ci];
+      // Shift+click → start/extend range. Plain click clears any existing range.
+      td.addEventListener("mousedown", (e) => {
+        if (e.shiftKey) {
+          e.preventDefault();
+          if (!rangeAncor) rangeAncor = { rowIdx: origIdx, colIdx: ci };
+          rangeFocus = { rowIdx: origIdx, colIdx: ci };
+          if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+          rangeUygula();
+        } else if (rangeAncor) {
+          rangeTemizle();
+        }
+      });
       span.addEventListener("focus", () => {
         span.dataset.orijinal = span.textContent;
+        // A focused cell becomes the implicit anchor for the next Shift+click range
+        rangeAncor = { rowIdx: origIdx, colIdx: ci };
+        rangeFocus = { rowIdx: origIdx, colIdx: ci };
       });
       span.addEventListener("blur", () => {
         const yeni = span.textContent;
@@ -205,7 +286,7 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
           if (sel.isCollapsed && span.textContent.length > 0) {
             e.preventDefault();
             navigator.clipboard?.readText().then((text) => {
-              if (text == null) return;
+              if (text === null || text === undefined) return;
               span.textContent = text.replace(/\r?\n/g, " ").trim();
               span.blur();
             });
@@ -324,6 +405,70 @@ function selectAll(el) {
   sel.removeAllRanges();
   sel.addRange(range);
 }
+
+function rangeKoordinatlari() {
+  if (!rangeAncor || !rangeFocus) return null;
+  const r1 = Math.min(rangeAncor.rowIdx, rangeFocus.rowIdx);
+  const r2 = Math.max(rangeAncor.rowIdx, rangeFocus.rowIdx);
+  const c1 = Math.min(rangeAncor.colIdx, rangeFocus.colIdx);
+  const c2 = Math.max(rangeAncor.colIdx, rangeFocus.colIdx);
+  return { r1, r2, c1, c2 };
+}
+
+function rangeCokluHucreMi() {
+  const k = rangeKoordinatlari();
+  if (!k) return false;
+  return k.r1 !== k.r2 || k.c1 !== k.c2;
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!rangeCallbacks) return;
+  const k = rangeKoordinatlari();
+  if (!k) return;
+  // Suppress range ops while a span is being edited (so single-cell typing keeps working)
+  if (document.activeElement && document.activeElement.classList?.contains("td-kanal-adi") && rangeCokluHucreMi() === false) {
+    return;
+  }
+  // Delete: clear all cells in the range
+  if (rangeCokluHucreMi() && (e.key === "Delete" || e.key === "Backspace")) {
+    e.preventDefault();
+    if (rangeCallbacks.callbacks?.onRangeBosalt) {
+      rangeCallbacks.callbacks.onRangeBosalt(k.r1, k.r2, k.c1, k.c2);
+    }
+    return;
+  }
+  // Ctrl+C on a multi-cell range → TSV
+  if (rangeCokluHucreMi() && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+    e.preventDefault();
+    const { satirlar } = rangeCallbacks;
+    const lines = [];
+    for (let r = k.r1; r <= k.r2; r++) {
+      const cells = [];
+      for (let c = k.c1; c <= k.c2; c++) {
+        cells.push(String(satirlar[r]?.[c] ?? ""));
+      }
+      lines.push(cells.join("\t"));
+    }
+    navigator.clipboard?.writeText(lines.join("\n"));
+    return;
+  }
+  // Ctrl+V on a multi-cell range → parse TSV, fill from top-left of range
+  if (rangeCokluHucreMi() && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+    e.preventDefault();
+    navigator.clipboard?.readText().then((text) => {
+      if (!text) return;
+      if (rangeCallbacks.callbacks?.onRangePaste) {
+        rangeCallbacks.callbacks.onRangePaste(k.r1, k.c1, text);
+      }
+    });
+    return;
+  }
+  // Esc clears the range
+  if (e.key === "Escape" && rangeCokluHucreMi()) {
+    e.preventDefault();
+    rangeTemizle();
+  }
+});
 
 let surukleyenIdx = null;
 
