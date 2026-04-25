@@ -25,6 +25,7 @@
 
 const DEVICES = [
   "quansheng-uv-k5-f4hwn",
+  "quansheng-uv-k5v3-uv-k1-f4hwn",
   "baofeng-k5-plus",
   "opengd77",
   "tyt-md-uv390-plus",

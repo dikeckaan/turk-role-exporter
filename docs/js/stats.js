@@ -10,6 +10,7 @@ const VISITOR_KEY = "roleExporterVisitorNumber";
 
 const CIHAZ_LABEL = {
   "quansheng-uv-k5-f4hwn": "Quansheng UV-K5 (F4HWN)",
+  "quansheng-uv-k5v3-uv-k1-f4hwn": "Quansheng UV-K5 v3 / UV-K1 (F4HWN v5.3.1)",
   "baofeng-k5-plus":       "Baofeng K5 Plus",
   "opengd77":              "OpenGD77",
   "tyt-md-uv390-plus":     "TYT MD-UV390 Plus",

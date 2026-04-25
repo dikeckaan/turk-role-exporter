@@ -21,6 +21,7 @@ Türkiye amatör telsiz röle verilerini cihazına özel CSV formatına dönüş
 CHIRP / üretici CPS yazılımıyla uyumlu CSV üretir. Şu cihazlar için hazır profil var:
 
 - **Quansheng UV-K5** (F4HWN v4.3 firmware)
+- **Quansheng UV-K5 v3 / UV-K1** (F4HWN v5.3.1 firmware, 1000 kanal)
 - **Baofeng K5 Plus**
 - **OpenGD77** (Radioddity GD-77, TYT MD-380, Baofeng DM-1801, Radioddity RD-5R)
 - **TYT MD-UV390 Plus**
