@@ -23,6 +23,46 @@ let rangeAncor = null;   // { rowIdx, colIdx }
 let rangeFocus = null;   // { rowIdx, colIdx }
 let rangeCallbacks = null;
 
+// FLIP animation: assign a stable key to each row reference so the renderer
+// can match "before" and "after" positions across re-render and animate the
+// delta with a transform.
+const satirAnahtarlari = new WeakMap();
+let sonrakiAnahtar = 0;
+function satirAnahtar(row) {
+  let k = satirAnahtarlari.get(row);
+  if (!k) { k = String(++sonrakiAnahtar); satirAnahtarlari.set(row, k); }
+  return k;
+}
+
+function flipPozTopla(tablo) {
+  const map = new Map();
+  if (!tablo) return map;
+  tablo.querySelectorAll("tbody tr[data-row-key]").forEach((tr) => {
+    map.set(tr.dataset.rowKey, tr.getBoundingClientRect().top);
+  });
+  return map;
+}
+
+function flipUygula(tablo, eskiPos) {
+  if (!tablo || eskiPos.size === 0) return;
+  tablo.querySelectorAll("tbody tr[data-row-key]").forEach((tr) => {
+    const eski = eskiPos.get(tr.dataset.rowKey);
+    if (eski === undefined) return;
+    const yeni = tr.getBoundingClientRect().top;
+    const delta = eski - yeni;
+    if (Math.abs(delta) < 1) return;
+    tr.style.transition = "none";
+    tr.style.transform = `translateY(${delta}px)`;
+    requestAnimationFrame(() => {
+      tr.style.transition = "transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)";
+      tr.style.transform = "";
+      tr.addEventListener("transitionend", () => {
+        tr.style.transition = "";
+      }, { once: true });
+    });
+  });
+}
+
 function rangeTemizle() {
   rangeAncor = null;
   rangeFocus = null;
@@ -59,6 +99,9 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
   const tablo = document.getElementById("onizleme-tablosu");
   if (!tablo) return;
   rangeCallbacks = { satirlar, callbacks };
+
+  // FLIP — capture current row positions before we rebuild the DOM
+  const eskiPos = flipPozTopla(tablo);
 
   // Rebuild headers dynamically
   const thead = tablo.querySelector("thead");
@@ -184,6 +227,7 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     const row = satirlar[origIdx];
     const tr = document.createElement("tr");
     tr.dataset.origIdx = String(origIdx);
+    tr.dataset.rowKey = satirAnahtar(row);
     if (dragEnabled) {
       tr.draggable = true;
       tr.classList.add("tr-draggable");
@@ -318,6 +362,9 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
   if (dragEnabled) {
     surukleBirakKur(tbody, satirlar, basliklar, callbacks);
   }
+
+  // FLIP — animate every row whose Y position changed since the previous render
+  flipUygula(tablo, eskiPos);
 
   // Info
   const bilgiEl = document.getElementById("onizleme-bilgi");
