@@ -144,7 +144,8 @@ export function cihazOpsiyonlariGuncelle() {
   goster("opsiyon-fmradyo-group", ek.fmRadyo);
   goster("opsiyon-airband-group", ek.airBand);
   goster("opsiyon-marine-group", ek.marineBand);
-  goster("opsiyon-simplex-group", true);
+  goster("opsiyon-fm-simplex-group", true);
+  goster("opsiyon-dijital-simplex-group", true);
   goster("bos-dijital-satir", dijitalVar);
 
   const formatSelect = document.getElementById("kanal-format-select");

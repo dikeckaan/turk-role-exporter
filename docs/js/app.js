@@ -40,6 +40,8 @@ import { isDijital, sehirPlaka } from "./utils.js";
 import { airbandGetir, marineGetir } from "./api.js";
 import { airbandUiKur } from "./airband-ui.js";
 import { marineUiKur } from "./marine-ui.js";
+import { simplexUiKur } from "./simplex-ui.js";
+import { FM_SIMPLEX, DIJITAL_SIMPLEX } from "./frekanslar.js";
 import { pingIfFirstVisit, recordDownload, loadStats, renderStatsPanel } from "./stats.js";
 import { themeBaslat } from "./theme.js";
 import { presetUiKur } from "./presets.js";
@@ -81,7 +83,8 @@ async function basla() {
       setCheck("opsiyon-pmr", opts.pmrEkle);
       setCheck("opsiyon-dpmr", opts.dpmrEkle);
       setCheck("opsiyon-fmradyo", opts.fmRadyoEkle);
-      setCheck("opsiyon-simplex", opts.simplexEkle);
+      setCheck("opsiyon-fm-simplex", opts.fmSimplexEkle);
+      setCheck("opsiyon-dijital-simplex", opts.dijitalSimplexEkle);
       setCheck("opsiyon-rxonly", opts.rxOnly);
       const gucSelect = document.getElementById("guc-select");
       if (gucSelect && opts.gucSeviyesi) gucSelect.value = opts.gucSeviyesi;
@@ -95,6 +98,27 @@ async function basla() {
       if (preset.marineSecim) {
         state.marineSecim = preset.marineSecim;
         if (state.marineData) marineUiKur();
+      }
+      if (preset.fmSimplexSecim) {
+        // Shallow clone so state mutations don't reach back into the cached preset object.
+        state.fmSimplexSecim = {
+          vhf: [...(preset.fmSimplexSecim.vhf || [])],
+          uhf: [...(preset.fmSimplexSecim.uhf || [])],
+        };
+        simplexUiKur(document.getElementById("fm-simplex-panel"), FM_SIMPLEX, "fmSimplexSecim", "fm-simplex-secim-degisti");
+      }
+      if (preset.dijitalSimplexSecim) {
+        state.dijitalSimplexSecim = {
+          vhf: [...(preset.dijitalSimplexSecim.vhf || [])],
+          uhf: [...(preset.dijitalSimplexSecim.uhf || [])],
+        };
+        simplexUiKur(document.getElementById("dijital-simplex-panel"), DIJITAL_SIMPLEX, "dijitalSimplexSecim", "dijital-simplex-secim-degisti");
+      }
+      // Re-toggle panel visibility based on the (just-restored) checkbox state
+      for (const [chkId, panelId] of [["opsiyon-fm-simplex","fm-simplex-panel"],["opsiyon-dijital-simplex","dijital-simplex-panel"]]) {
+        const chk = document.getElementById(chkId);
+        const panel = document.getElementById(panelId);
+        if (chk && panel) panel.style.display = chk.checked ? "" : "none";
       }
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     }
@@ -180,7 +204,7 @@ function formatUyarisiKontrol(profil, opsiyonlar) {
 
   if (!dijitalDestekli) {
     if (opsiyonlar.dpmrEkle) uyarilar.push("dPMR kanallari eklendi ama bu cihaz dijital modlari desteklemiyor.");
-    if (opsiyonlar.simplexEkle) uyarilar.push("Dijital simplex kanallari eklendi ama bu cihaz dijital modlari desteklemiyor.");
+    if (opsiyonlar.dijitalSimplexEkle) uyarilar.push("Dijital simplex kanallari eklendi ama bu cihaz dijital decode edemez; RX-only FM olarak yazilacak.");
     if (opsiyonlar.bosDijitalAdet > 0) uyarilar.push("Bos dijital kanal eklendi ama bu cihaz dijital modlari desteklemiyor.");
   }
 
@@ -354,13 +378,30 @@ function dinleyicileriKur() {
   [
     "filtre-aktif", "filtre-ruhsat", "filtre-puan",
     "opsiyon-pmr", "opsiyon-dpmr", "opsiyon-fmradyo",
-    "opsiyon-simplex", "opsiyon-rxonly",
+    "opsiyon-fm-simplex", "opsiyon-dijital-simplex", "opsiyon-rxonly",
     "opsiyon-pmr-rxonly", "opsiyon-dpmr-rxonly",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("change", () => {
       document.dispatchEvent(new CustomEvent("filtre-degisti"));
     });
   });
+
+  // Simplex pickers (FM + Dijital)
+  simplexUiKur(document.getElementById("fm-simplex-panel"), FM_SIMPLEX, "fmSimplexSecim", "fm-simplex-secim-degisti");
+  simplexUiKur(document.getElementById("dijital-simplex-panel"), DIJITAL_SIMPLEX, "dijitalSimplexSecim", "dijital-simplex-secim-degisti");
+
+  for (const [chkId, panelId] of [["opsiyon-fm-simplex","fm-simplex-panel"],["opsiyon-dijital-simplex","dijital-simplex-panel"]]) {
+    const chk = document.getElementById(chkId);
+    const panel = document.getElementById(panelId);
+    if (chk && panel) {
+      chk.addEventListener("change", () => {
+        panel.style.display = chk.checked ? "" : "none";
+      });
+    }
+  }
+
+  document.addEventListener("fm-simplex-secim-degisti", () => uygulaDebounced());
+  document.addEventListener("dijital-simplex-secim-degisti", () => uygulaDebounced());
 
   document.getElementById("opsiyon-pmr")?.addEventListener("change", (e) => {
     const label = document.getElementById("opsiyon-pmr-rxonly-label");

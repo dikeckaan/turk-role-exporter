@@ -151,7 +151,10 @@ export function opsiyonTopla() {
     airbandSecili: secilenAirbandFrekanslari(state.airbandData, state.airbandSecim),
     marineEkle: document.getElementById("opsiyon-marine")?.checked ?? false,
     marineSecili: secilenMarineFrekanslari(state.marineData, state.marineSecim),
-    simplexEkle: document.getElementById("opsiyon-simplex")?.checked ?? false,
+    fmSimplexEkle: document.getElementById("opsiyon-fm-simplex")?.checked ?? false,
+    fmSimplexSecim: state.fmSimplexSecim,
+    dijitalSimplexEkle: document.getElementById("opsiyon-dijital-simplex")?.checked ?? false,
+    dijitalSimplexSecim: state.dijitalSimplexSecim,
     rxOnly: document.getElementById("opsiyon-rxonly")?.checked ?? true,
     gucSeviyesi: document.getElementById("guc-select")?.value || "High",
     kanalAdiFormati:
