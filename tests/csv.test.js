@@ -54,6 +54,22 @@ const cpsProfil = {
   maxKanal: 3000,
 };
 
+const opengd77Profil = {
+  csvFormat: "opengd77",
+  csvSutunlari: [
+    "Channel Number", "Channel Name", "Channel Type", "Rx Frequency", "Tx Frequency",
+    "Bandwidth (kHz)", "Colour Code", "Timeslot", "Contact", "TG List", "DMR ID",
+    "TS1_TA_Tx", "TS2_TA_Tx ID", "RX Tone", "TX Tone", "Squelch", "Power",
+    "Rx Only", "Zone Skip", "All Skip", "TOT", "VOX", "No Beep", "No Eco",
+    "APRS", "Latitude", "Longitude", "Use Location",
+  ],
+  varsayilanDegerler: { bandwidth: "12.5", colourCode: "1", timeslot: "1", tgList: "None", dmrId: "None", squelch: "Disabled" },
+  gucSeviyeleri: { Master: "Master" },
+  maxKanalAdi: 16,
+  bantlar: ["VHF", "UHF"], modlar: ["Analog", "Dijital"], maxKanal: 1023,
+  shiftHesaplama: { VHF: -0.6, UHF: -7.6 },
+};
+
 const mockRoleler = [
   {
     sehir: "istanbul",
@@ -290,5 +306,54 @@ describe("CPS simplex satırları", () => {
     assert.equal(satirlar[0][0], "2");                // Channel Mode = Digital
     assert.equal(satirlar[0][29], "1");               // Color Code from "TG99 CC1 TS1"
     assert.equal(satirlar[0][30], "1");               // Repeater Slot
+  });
+});
+
+describe("OpenGD77 simplex satırları", () => {
+  it("FM simplex Channel Type=Analogue ile yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      gucSeviyesi: "Master",
+      fmSimplexEkle: true,
+      fmSimplexSecim: { vhf: ["V01"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], opengd77Profil, opts);
+    assert.equal(satirlar.length, 1);
+    assert.equal(satirlar[0][2], "Analogue");
+  });
+
+  it("dijital simplex Channel Type=Digital + Colour Code/Timeslot doğru yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      gucSeviyesi: "Master",
+      dijitalSimplexEkle: true,
+      dijitalSimplexSecim: { vhf: ["DV2"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], opengd77Profil, opts);
+    assert.equal(satirlar.length, 1);
+    assert.equal(satirlar[0][2], "Digital");
+    assert.equal(satirlar[0][6], "1");          // Colour Code
+    assert.equal(satirlar[0][7], "1");          // Timeslot
+  });
+
+  it("OpenGD77'de NXDN simplex Analogue placeholder olarak yazılır (DMR değil)", () => {
+    const opts = { ...defaultOpsiyonlar,
+      gucSeviyesi: "Master",
+      dijitalSimplexEkle: true,
+      dijitalSimplexSecim: { vhf: ["DV3"], uhf: [] },  // NXDN
+    };
+    const { satirlar } = csvSatirlarUret([], opengd77Profil, opts);
+    assert.equal(satirlar.length, 1);
+    assert.equal(satirlar[0][2], "Analogue");  // not Digital
+  });
+
+  it("OpenGD77'de C4FM ve D-STAR simplex Analogue olarak yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      gucSeviyesi: "Master",
+      dijitalSimplexEkle: true,
+      dijitalSimplexSecim: { vhf: ["DV1", "DV4"], uhf: [] },  // C4FM + D-STAR
+    };
+    const { satirlar } = csvSatirlarUret([], opengd77Profil, opts);
+    assert.equal(satirlar.length, 2);
+    assert.equal(satirlar[0][2], "Analogue");
+    assert.equal(satirlar[1][2], "Analogue");
   });
 });

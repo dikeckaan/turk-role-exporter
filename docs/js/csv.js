@@ -383,7 +383,34 @@ function opengd77SatirlarUret(roleler, profil, opsiyonlar) {
     }
   }
 
-  // Simplex (FM + Dijital) — Task 8'de yeniden eklenecek
+  // FM Simplex (Analogue)
+  if (opsiyonlar.fmSimplexEkle) {
+    const fmList = secilenSimplexFrekanslari(FM_SIMPLEX, opsiyonlar.fmSimplexSecim);
+    for (const sx of fmList) {
+      const f = parseFloat(sx.frek);
+      const isim = `${sx.kanal}-${sx.ad}`.slice(0, maxAd);
+      rows.push(opengd77Satir(profil, loc++, isim, f, f, false, null, false, gucLabel));
+    }
+  }
+
+  // Dijital Simplex
+  if (opsiyonlar.dijitalSimplexEkle) {
+    const dijList = secilenSimplexFrekanslari(DIJITAL_SIMPLEX, opsiyonlar.dijitalSimplexSecim);
+    for (const sx of dijList) {
+      const f = parseFloat(sx.frek);
+      const isim = `${sx.mod.replace("-", "").slice(0, 4)}-${sx.bolum.toUpperCase()}`.slice(0, maxAd);
+      // OpenGD77 only decodes DMR; non-DMR digital modes are written as analog placeholders
+      const isDmr = sx.mod === "DMR";
+      const row = opengd77Satir(profil, loc++, isim, f, f, isDmr, null, false, gucLabel);
+      if (isDmr) {
+        const ccMatch = (sx.param || "").match(/CC(\d+)/);
+        const tsMatch = (sx.param || "").match(/TS(\d+)/);
+        if (ccMatch) row[6] = ccMatch[1];   // Colour Code
+        if (tsMatch) row[7] = tsMatch[1];   // Timeslot
+      }
+      rows.push(row);
+    }
+  }
 
   // Empty analog
   if (opsiyonlar.bosAnalogAdet > 0) {
