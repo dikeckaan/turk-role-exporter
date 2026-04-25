@@ -52,14 +52,14 @@ export function marineUiKur() {
 
   for (const b of data.bolumler) {
     const det = document.createElement("details");
-    det.className = "marine-bolum";
+    det.className = "list-bolum";
 
     const sum = document.createElement("summary");
-    sum.className = "marine-bolum-sum";
+    sum.className = "list-bolum-sum";
     const title = document.createElement("span");
     title.textContent = b.ad;
     const count = document.createElement("span");
-    count.className = "marine-count";
+    count.className = "list-count";
     sum.appendChild(title);
     sum.appendChild(count);
     det.appendChild(sum);
@@ -72,7 +72,7 @@ export function marineUiKur() {
 
     const toggleAll = document.createElement("button");
     toggleAll.type = "button";
-    toggleAll.className = "marine-toggle-all";
+    toggleAll.className = "list-toggle-all";
     toggleAll.textContent = "Hepsi / Hicbiri";
     toggleAll.addEventListener("click", (e) => {
       e.preventDefault();
@@ -89,7 +89,7 @@ export function marineUiKur() {
 
     for (const f of b.frekanslar || []) {
       const lbl = document.createElement("label");
-      lbl.className = "marine-row";
+      lbl.className = "list-row";
       const cb = document.createElement("input");
       cb.type = "checkbox";
       cb.dataset.kanal = f.kanal;
