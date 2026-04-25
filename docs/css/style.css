@@ -454,28 +454,16 @@ select option {
 .table-container {
   overflow-x: auto;
   border-radius: 8px;
-  max-height: 70vh;
-  overflow-y: auto;
 }
 
-/* Sticky header + first column (Excel-style frozen panes) */
-#onizleme-tablosu thead th {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  background: var(--surface-2);
+/* Compact mode (denser rows) */
+.tablo-kompakt th,
+.tablo-kompakt td {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  font-size: 0.82rem;
 }
-#onizleme-tablosu tbody td:first-child,
-#onizleme-tablosu thead th:first-child {
-  position: sticky;
-  left: 0;
-  background: var(--surface);
-  z-index: 2;
-}
-#onizleme-tablosu thead th:first-child {
-  z-index: 4;
-  background: var(--surface-2);
-}
+.tablo-kompakt .td-kanal-adi { padding: 1px 4px; }
 
 /* ── Table ───────────────────────────────────────────────── */
 table {
@@ -1337,6 +1325,48 @@ input[type="number"]:focus {
 #onizleme-tablosu td.hucre-range {
   background: rgba(74, 144, 226, 0.18);
   box-shadow: inset 0 0 0 1px rgba(74, 144, 226, 0.5);
+}
+
+/* Keyboard shortcut help modal */
+.yardim-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.yardim-panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.yardim-panel h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+}
+.yardim-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 0.88rem;
+}
+.yardim-list dt {
+  color: var(--accent);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.yardim-list dd {
+  margin: 0;
+  color: var(--text);
 }
 
 .td-sira {

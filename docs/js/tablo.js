@@ -1,15 +1,23 @@
 /**
  * tablo.js
- * Renders the CSV preview table with fully editable cells and pagination.
- * Shows the exact CSV output — what you see is what you export.
+ * Renders the CSV preview table with editable cells, drag-drop reorder,
+ * sortable headers, range selection (shift+click), column resize.
+ *
+ * Performance contract: render attaches NO per-cell listeners. All input
+ * is handled by a small set of delegated tbody/thead/document listeners
+ * that resolve target cells from data-attributes. This keeps a 3000×51
+ * table from drowning Chrome in 600k closures.
  */
 
 let mevcutSayfa = 1;
 let sayfaBoyutu = 100;
-let sortKolon = null;   // 0-based index into basliklar (the data columns, NOT including # and Islem)
-let sortYon = null;     // "asc" | "desc" | null
+let sortKolon = null;
+let sortYon = null;
+let kompaktMod = false;
 
 const KOLON_GENISLIK_KEY = "tabloKolonGenislikleri";
+const KOMPAKT_KEY = "tabloKompaktMod";
+
 function genisliklerYukle() {
   try { return JSON.parse(localStorage.getItem(KOLON_GENISLIK_KEY)) || {}; }
   catch { return {}; }
@@ -18,14 +26,14 @@ function genisliklerKaydet(g) {
   try { localStorage.setItem(KOLON_GENISLIK_KEY, JSON.stringify(g)); } catch {}
 }
 
-// Range selection state (cell rectangle, inclusive on both corners)
-let rangeAncor = null;   // { rowIdx, colIdx }
-let rangeFocus = null;   // { rowIdx, colIdx }
-let rangeCallbacks = null;
+// Range selection
+let rangeAncor = null;
+let rangeFocus = null;
+let aktifSatirlar = null;     // captured on render so document-level listeners can read state
+let aktifBasliklar = null;
+let aktifCallbacks = null;
 
-// FLIP animation: assign a stable key to each row reference so the renderer
-// can match "before" and "after" positions across re-render and animate the
-// delta with a transform.
+// FLIP (row position animation)
 const satirAnahtarlari = new WeakMap();
 let sonrakiAnahtar = 0;
 function satirAnahtar(row) {
@@ -33,77 +41,120 @@ function satirAnahtar(row) {
   if (!k) { k = String(++sonrakiAnahtar); satirAnahtarlari.set(row, k); }
   return k;
 }
-
 function flipPozTopla(tablo) {
   const map = new Map();
   if (!tablo) return map;
-  tablo.querySelectorAll("tbody tr[data-row-key]").forEach((tr) => {
-    map.set(tr.dataset.rowKey, tr.getBoundingClientRect().top);
-  });
+  const tbody = tablo.querySelector("tbody");
+  if (!tbody) return map;
+  for (const tr of tbody.children) {
+    const k = tr.dataset.rowKey;
+    if (k) map.set(k, tr.getBoundingClientRect().top);
+  }
   return map;
 }
-
 function flipUygula(tablo, eskiPos) {
   if (!tablo || eskiPos.size === 0) return;
-  tablo.querySelectorAll("tbody tr[data-row-key]").forEach((tr) => {
+  const tbody = tablo.querySelector("tbody");
+  if (!tbody) return;
+  for (const tr of tbody.children) {
     const eski = eskiPos.get(tr.dataset.rowKey);
-    if (eski === undefined) return;
+    if (eski === undefined) continue;
     const yeni = tr.getBoundingClientRect().top;
     const delta = eski - yeni;
-    if (Math.abs(delta) < 1) return;
+    if (Math.abs(delta) < 1) continue;
     tr.style.transition = "none";
     tr.style.transform = `translateY(${delta}px)`;
     requestAnimationFrame(() => {
       tr.style.transition = "transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)";
       tr.style.transform = "";
-      tr.addEventListener("transitionend", () => {
-        tr.style.transition = "";
-      }, { once: true });
+      tr.addEventListener("transitionend", () => { tr.style.transition = ""; }, { once: true });
     });
-  });
+  }
 }
 
+function selectAll(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function rangeKoor() {
+  if (!rangeAncor || !rangeFocus) return null;
+  return {
+    r1: Math.min(rangeAncor.rowIdx, rangeFocus.rowIdx),
+    r2: Math.max(rangeAncor.rowIdx, rangeFocus.rowIdx),
+    c1: Math.min(rangeAncor.colIdx, rangeFocus.colIdx),
+    c2: Math.max(rangeAncor.colIdx, rangeFocus.colIdx),
+  };
+}
+function rangeCoklu() {
+  const k = rangeKoor();
+  return !!k && (k.r1 !== k.r2 || k.c1 !== k.c2);
+}
+function rangeUygula() {
+  document.querySelectorAll("#onizleme-tablosu td.hucre-range").forEach((td) => td.classList.remove("hucre-range"));
+  const k = rangeKoor();
+  if (!k) return;
+  const tablo = document.getElementById("onizleme-tablosu");
+  if (!tablo) return;
+  for (let r = k.r1; r <= k.r2; r++) {
+    const tr = tablo.querySelector(`tbody tr[data-orig-idx="${r}"]`);
+    if (!tr) continue;
+    for (let c = k.c1; c <= k.c2; c++) {
+      const td = tr.querySelector(`td[data-col-idx="${c}"]`);
+      if (td) td.classList.add("hucre-range");
+    }
+  }
+}
 function rangeTemizle() {
   rangeAncor = null;
   rangeFocus = null;
   document.querySelectorAll("#onizleme-tablosu td.hucre-range").forEach((td) => td.classList.remove("hucre-range"));
 }
 
-function rangeUygula() {
-  document.querySelectorAll("#onizleme-tablosu td.hucre-range").forEach((td) => td.classList.remove("hucre-range"));
-  if (!rangeAncor || !rangeFocus) return;
-  const r1 = Math.min(rangeAncor.rowIdx, rangeFocus.rowIdx);
-  const r2 = Math.max(rangeAncor.rowIdx, rangeFocus.rowIdx);
-  const c1 = Math.min(rangeAncor.colIdx, rangeFocus.colIdx);
-  const c2 = Math.max(rangeAncor.colIdx, rangeFocus.colIdx);
-  const tablo = document.getElementById("onizleme-tablosu");
-  if (!tablo) return;
-  for (let r = r1; r <= r2; r++) {
-    const tr = tablo.querySelector(`tbody tr[data-orig-idx="${r}"]`);
-    if (!tr) continue;
-    for (let c = c1; c <= c2; c++) {
-      const td = tr.children[c + 1]; // +1 for # column
-      if (td) td.classList.add("hucre-range");
-    }
-  }
-}
+// ─── Render ──────────────────────────────────────────────────────────────────
 
-
-/**
- * Renders editable CSV preview table with pagination.
- * @param {string[]} basliklar - CSV column headers
- * @param {string[][]} satirlar - CSV row arrays (mutable)
- * @param {object} callbacks - { onSil(rowIndex), onHucreDegistir(rowIndex, colIndex, value) }
- */
 export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
   const tablo = document.getElementById("onizleme-tablosu");
   if (!tablo) return;
-  rangeCallbacks = { satirlar, callbacks };
 
-  // FLIP — capture current row positions before we rebuild the DOM
+  aktifSatirlar = satirlar;
+  aktifBasliklar = basliklar;
+  aktifCallbacks = callbacks;
+
+  if (!tablo.dataset.dinleyiciKurulu) {
+    dinleyicileriBaglat(tablo);
+    tablo.dataset.dinleyiciKurulu = "1";
+  }
+
+  // Compact mode
+  kompaktMod = localStorage.getItem(KOMPAKT_KEY) === "1";
+  tablo.classList.toggle("tablo-kompakt", kompaktMod);
+
   const eskiPos = flipPozTopla(tablo);
 
-  // Rebuild headers dynamically
+  // Filter
+  const aramaInput = document.getElementById("tablo-arama");
+  const aramaMetni = aramaInput ? aramaInput.value.toLowerCase() : "";
+  const gorunurIndexler = [];
+  for (let i = 0; i < satirlar.length; i++) {
+    if (aramaMetni) {
+      const match = satirlar[i].some((val) => String(val).toLowerCase().includes(aramaMetni));
+      if (!match) continue;
+    }
+    gorunurIndexler.push(i);
+  }
+
+  // Pagination
+  const toplamSayfa = sayfaBoyutu === 0 ? 1 : Math.max(1, Math.ceil(gorunurIndexler.length / sayfaBoyutu));
+  if (mevcutSayfa > toplamSayfa) mevcutSayfa = toplamSayfa;
+  const baslangic = sayfaBoyutu === 0 ? 0 : (mevcutSayfa - 1) * sayfaBoyutu;
+  const bitis = sayfaBoyutu === 0 ? gorunurIndexler.length : Math.min(baslangic + sayfaBoyutu, gorunurIndexler.length);
+  const sayfaIndexler = gorunurIndexler.slice(baslangic, bitis);
+
+  // Header
   const thead = tablo.querySelector("thead");
   if (thead) {
     thead.replaceChildren();
@@ -116,8 +167,11 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
 
     const genislikler = genisliklerYukle();
     basliklar.forEach((h, ci) => {
+      // Hide the redundant Location column (col 0) — # already shows the same number
+      if (ci === 0 && /^location$|^channel\s*number$/i.test(h)) return;
       const th = document.createElement("th");
       th.className = "th-sortable";
+      th.dataset.colIdx = String(ci);
       const baslikSpan = document.createElement("span");
       baslikSpan.textContent = h;
       th.appendChild(baslikSpan);
@@ -128,99 +182,32 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
         th.appendChild(ind);
       }
       if (genislikler[h]) th.style.width = genislikler[h] + "px";
-
-      // Resize handle
       const handle = document.createElement("div");
       handle.className = "th-resize-handle";
+      handle.dataset.colHeader = h;
       handle.title = "Cift tikla: otomatik genislik";
-      handle.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const startX = e.clientX;
-        const startWidth = th.offsetWidth;
-        const move = (ev) => {
-          const w = Math.max(40, startWidth + (ev.clientX - startX));
-          th.style.width = w + "px";
-        };
-        const up = () => {
-          document.removeEventListener("mousemove", move);
-          document.removeEventListener("mouseup", up);
-          const g = genisliklerYukle();
-          g[h] = th.offsetWidth;
-          genisliklerKaydet(g);
-        };
-        document.addEventListener("mousemove", move);
-        document.addEventListener("mouseup", up);
-      });
-      handle.addEventListener("dblclick", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        th.style.width = "";
-        const g = genisliklerYukle();
-        delete g[h];
-        genisliklerKaydet(g);
-      });
       th.appendChild(handle);
-
-      th.addEventListener("click", (e) => {
-        // Ignore clicks that originated on the resize handle
-        if (e.target.classList.contains("th-resize-handle")) return;
-        if (sortKolon === ci) {
-          sortYon = sortYon === "asc" ? "desc" : sortYon === "desc" ? null : "asc";
-          if (sortYon === null) sortKolon = null;
-        } else {
-          sortKolon = ci;
-          sortYon = "asc";
-        }
-        if (callbacks?.onSortDegistir && sortKolon !== null) {
-          callbacks.onSortDegistir(sortKolon, sortYon);
-        } else {
-          csvTabloGuncelle(basliklar, satirlar, callbacks);
-        }
-      });
       tr.appendChild(th);
     });
 
     const thIslem = document.createElement("th");
     thIslem.className = "th-islem";
-    thIslem.textContent = "Islem";
+    thIslem.textContent = "";
     tr.appendChild(thIslem);
 
     thead.appendChild(tr);
   }
 
-  // Filter by search
-  const aramaInput = document.getElementById("tablo-arama");
-  const aramaMetni = aramaInput ? aramaInput.value.toLowerCase() : "";
-
-  const gorunurIndexler = [];
-  for (let i = 0; i < satirlar.length; i++) {
-    if (aramaMetni) {
-      const match = satirlar[i].some((val) =>
-        String(val).toLowerCase().includes(aramaMetni)
-      );
-      if (!match) continue;
-    }
-    gorunurIndexler.push(i);
-  }
-
-  // Pagination calculations
-  const toplamSayfa = sayfaBoyutu === 0
-    ? 1
-    : Math.max(1, Math.ceil(gorunurIndexler.length / sayfaBoyutu));
-  if (mevcutSayfa > toplamSayfa) mevcutSayfa = toplamSayfa;
-
-  const baslangic = sayfaBoyutu === 0 ? 0 : (mevcutSayfa - 1) * sayfaBoyutu;
-  const bitis = sayfaBoyutu === 0 ? gorunurIndexler.length : Math.min(baslangic + sayfaBoyutu, gorunurIndexler.length);
-  const sayfaIndexler = gorunurIndexler.slice(baslangic, bitis);
-
+  // Body — uses DocumentFragment to keep layout off the critical path during build
   const tbody = tablo.querySelector("tbody");
   if (!tbody) return;
   tbody.replaceChildren();
+  const frag = document.createDocumentFragment();
 
-  // Drag-drop only safe when there's no filter and we render every row.
-  // Otherwise the displayed row index doesn't map cleanly to state.csvSatirlar.
-  const dragEnabled = !aramaMetni && gorunurIndexler.length === satirlar.length;
+  // Drag-drop is page-local (HTML5 drag API can't cross pages anyway),
+  // so we only need to disable it when the search filter is active —
+  // filtered indices aren't contiguous in state.csvSatirlar.
+  const dragEnabled = !aramaMetni;
 
   for (let vi = 0; vi < sayfaIndexler.length; vi++) {
     const origIdx = sayfaIndexler[vi];
@@ -231,8 +218,6 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     if (dragEnabled) {
       tr.draggable = true;
       tr.classList.add("tr-draggable");
-    } else {
-      tr.title = "Surukle-birak icin filtreyi temizleyin ve sayfa boyutunu 'Tumu' yapin";
     }
 
     const siraTd = document.createElement("td");
@@ -241,103 +226,15 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     tr.appendChild(siraTd);
 
     for (let ci = 0; ci < row.length; ci++) {
+      // Hide the redundant Location column from the UI (it's still in csvSatirlar for export)
+      if (ci === 0 && /^location$|^channel\s*number$/i.test(basliklar[ci] || "")) continue;
       const td = document.createElement("td");
+      td.dataset.colIdx = String(ci);
       const span = document.createElement("span");
       span.className = "td-kanal-adi";
       span.contentEditable = "true";
       span.textContent = row[ci];
       span.spellcheck = false;
-      span.setAttribute("role", "textbox");
-      span.setAttribute("aria-label", basliklar[ci] || `Sutun ${ci + 1}`);
-
-      const orijinalDeger = row[ci];
-      // Shift+click → start/extend range. Plain click clears any existing range.
-      td.addEventListener("mousedown", (e) => {
-        if (e.shiftKey) {
-          e.preventDefault();
-          if (!rangeAncor) rangeAncor = { rowIdx: origIdx, colIdx: ci };
-          rangeFocus = { rowIdx: origIdx, colIdx: ci };
-          if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-          rangeUygula();
-        } else if (rangeAncor) {
-          rangeTemizle();
-        }
-      });
-      span.addEventListener("focus", () => {
-        span.dataset.orijinal = span.textContent;
-        // A focused cell becomes the implicit anchor for the next Shift+click range
-        rangeAncor = { rowIdx: origIdx, colIdx: ci };
-        rangeFocus = { rowIdx: origIdx, colIdx: ci };
-      });
-      span.addEventListener("blur", () => {
-        const yeni = span.textContent;
-        if (yeni !== row[ci] && callbacks?.onHucreDegistir) {
-          callbacks.onHucreDegistir(origIdx, ci, yeni);
-        }
-      });
-      span.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); span.blur(); return; }
-        if (e.key === "Escape") {
-          // Revert to original value and blur without saving
-          span.textContent = span.dataset.orijinal ?? orijinalDeger;
-          span.blur();
-          return;
-        }
-        if (e.key === "Tab" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          // Horizontal nav: Tab always moves; arrows only when cursor is at the cell boundary
-          if (e.key !== "Tab") {
-            const sel = window.getSelection();
-            const collapsed = sel.isCollapsed;
-            const offset = sel.focusOffset;
-            const len = span.textContent.length;
-            if (e.key === "ArrowLeft" && (!collapsed || offset > 0)) return;
-            if (e.key === "ArrowRight" && (!collapsed || offset < len)) return;
-          }
-          e.preventDefault();
-          const goLeft = (e.key === "Tab" && e.shiftKey) || e.key === "ArrowLeft";
-          span.blur();
-          const next = goLeft
-            ? td.previousElementSibling?.querySelector(".td-kanal-adi")
-            : td.nextElementSibling?.querySelector(".td-kanal-adi");
-          if (next) { next.focus(); selectAll(next); }
-          return;
-        }
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-          e.preventDefault();
-          const colIdx = Array.from(tr.children).indexOf(td);
-          const targetTr = e.key === "ArrowUp" ? tr.previousElementSibling : tr.nextElementSibling;
-          const targetTd = targetTr?.children[colIdx];
-          const target = targetTd?.querySelector(".td-kanal-adi");
-          if (target) {
-            span.blur();
-            target.focus();
-            selectAll(target);
-          }
-          return;
-        }
-        // Excel-style full-cell copy/paste: when no text is selected,
-        // Ctrl+C copies the whole cell, Ctrl+V replaces it.
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
-          const sel = window.getSelection();
-          if (sel.isCollapsed) {
-            e.preventDefault();
-            navigator.clipboard?.writeText(span.textContent);
-          }
-          return;
-        }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
-          const sel = window.getSelection();
-          if (sel.isCollapsed && span.textContent.length > 0) {
-            e.preventDefault();
-            navigator.clipboard?.readText().then((text) => {
-              if (text === null || text === undefined) return;
-              span.textContent = text.replace(/\r?\n/g, " ").trim();
-              span.blur();
-            });
-          }
-        }
-      });
-
       td.appendChild(span);
       tr.appendChild(td);
     }
@@ -349,34 +246,278 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     silBtn.className = "btn-sil";
     silBtn.textContent = "\u00D7";
     silBtn.title = "Satiri sil";
-    silBtn.setAttribute("aria-label", `Satir ${baslangic + vi + 1} sil`);
-    silBtn.addEventListener("click", () => {
-      if (callbacks?.onSil) callbacks.onSil(origIdx);
-    });
+    silBtn.dataset.action = "sil";
     islemTd.appendChild(silBtn);
     tr.appendChild(islemTd);
 
-    tbody.appendChild(tr);
+    frag.appendChild(tr);
   }
+  tbody.appendChild(frag);
 
-  if (dragEnabled) {
-    surukleBirakKur(tbody, satirlar, basliklar, callbacks);
-  }
-
-  // FLIP — animate every row whose Y position changed since the previous render
+  rangeUygula();
   flipUygula(tablo, eskiPos);
 
-  // Info
   const bilgiEl = document.getElementById("onizleme-bilgi");
-  if (bilgiEl) {
-    bilgiEl.textContent = `(${gorunurIndexler.length} / ${satirlar.length} satir)`;
-  }
-
-  // Pagination controls
-  renderPaginasyon(tablo, gorunurIndexler.length, toplamSayfa, basliklar, satirlar, callbacks);
+  if (bilgiEl) bilgiEl.textContent = `(${gorunurIndexler.length} / ${satirlar.length} satir)`;
+  renderPaginasyon(tablo, toplamSayfa);
 }
 
-function renderPaginasyon(tablo, toplamGorunur, toplamSayfa, basliklar, satirlar, callbacks) {
+// ─── Delegated listeners (attached once per tablo lifetime) ─────────────────
+
+function dinleyicileriBaglat(tablo) {
+  const tbody = tablo.querySelector("tbody");
+  const thead = tablo.querySelector("thead");
+
+  // Cell mousedown — handles range start/extend, click-to-clear-range
+  tbody?.addEventListener("mousedown", (e) => {
+    const td = e.target.closest("td[data-col-idx]");
+    const tr = e.target.closest("tr[data-orig-idx]");
+    if (!td || !tr) return;
+    const rowIdx = parseInt(tr.dataset.origIdx, 10);
+    const colIdx = parseInt(td.dataset.colIdx, 10);
+    if (e.shiftKey) {
+      e.preventDefault();
+      if (!rangeAncor) rangeAncor = { rowIdx, colIdx };
+      rangeFocus = { rowIdx, colIdx };
+      if (document.activeElement?.blur) document.activeElement.blur();
+      rangeUygula();
+    } else if (rangeCoklu()) {
+      rangeTemizle();
+    }
+  });
+
+  // Cell focus — set anchor for next shift+click
+  tbody?.addEventListener("focusin", (e) => {
+    const span = e.target.closest("span.td-kanal-adi");
+    const td = e.target.closest("td[data-col-idx]");
+    const tr = e.target.closest("tr[data-orig-idx]");
+    if (!span || !td || !tr) return;
+    span.dataset.orijinal = span.textContent;
+    rangeAncor = { rowIdx: parseInt(tr.dataset.origIdx, 10), colIdx: parseInt(td.dataset.colIdx, 10) };
+    rangeFocus = { ...rangeAncor };
+  });
+
+  // Cell blur — commit edit
+  tbody?.addEventListener("focusout", (e) => {
+    const span = e.target.closest("span.td-kanal-adi");
+    const td = e.target.closest("td[data-col-idx]");
+    const tr = e.target.closest("tr[data-orig-idx]");
+    if (!span || !td || !tr) return;
+    const rowIdx = parseInt(tr.dataset.origIdx, 10);
+    const colIdx = parseInt(td.dataset.colIdx, 10);
+    const yeni = span.textContent;
+    if (aktifSatirlar?.[rowIdx]?.[colIdx] !== yeni && aktifCallbacks?.onHucreDegistir) {
+      aktifCallbacks.onHucreDegistir(rowIdx, colIdx, yeni);
+    }
+  });
+
+  // Cell keydown — navigation, edit shortcuts, full-cell copy/paste
+  tbody?.addEventListener("keydown", (e) => {
+    const span = e.target.closest("span.td-kanal-adi");
+    if (!span) return;
+    const td = span.closest("td[data-col-idx]");
+    const tr = span.closest("tr[data-orig-idx]");
+    if (!td || !tr) return;
+
+    if (e.key === "Enter") { e.preventDefault(); span.blur(); return; }
+    if (e.key === "Escape") {
+      span.textContent = span.dataset.orijinal ?? span.textContent;
+      span.blur();
+      return;
+    }
+    if (e.key === "Tab" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      if (e.key !== "Tab") {
+        const sel = window.getSelection();
+        const collapsed = sel.isCollapsed;
+        const offset = sel.focusOffset;
+        const len = span.textContent.length;
+        if (e.key === "ArrowLeft" && (!collapsed || offset > 0)) return;
+        if (e.key === "ArrowRight" && (!collapsed || offset < len)) return;
+      }
+      e.preventDefault();
+      const goLeft = (e.key === "Tab" && e.shiftKey) || e.key === "ArrowLeft";
+      span.blur();
+      const next = goLeft
+        ? td.previousElementSibling?.querySelector(".td-kanal-adi")
+        : td.nextElementSibling?.querySelector(".td-kanal-adi");
+      if (next) { next.focus(); selectAll(next); }
+      return;
+    }
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const colIdx = Array.from(tr.children).indexOf(td);
+      const targetTr = e.key === "ArrowUp" ? tr.previousElementSibling : tr.nextElementSibling;
+      const target = targetTr?.children[colIdx]?.querySelector(".td-kanal-adi");
+      if (target) { span.blur(); target.focus(); selectAll(target); }
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+      const sel = window.getSelection();
+      if (sel.isCollapsed) { e.preventDefault(); navigator.clipboard?.writeText(span.textContent); }
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+      const sel = window.getSelection();
+      if (sel.isCollapsed && span.textContent.length > 0) {
+        e.preventDefault();
+        navigator.clipboard?.readText().then((text) => {
+          if (text === null || text === undefined) return;
+          span.textContent = text.replace(/\r?\n/g, " ").trim();
+          span.blur();
+        });
+      }
+    }
+  });
+
+  // Delete row button
+  tbody?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-action='sil']");
+    if (!btn) return;
+    const tr = btn.closest("tr[data-orig-idx]");
+    if (!tr) return;
+    const rowIdx = parseInt(tr.dataset.origIdx, 10);
+    if (aktifCallbacks?.onSil) aktifCallbacks.onSil(rowIdx);
+  });
+
+  // Drag-drop reorder (delegated)
+  let surukleyenIdx = null;
+  tbody?.addEventListener("dragstart", (e) => {
+    const tr = e.target.closest("tr.tr-draggable");
+    if (!tr) return;
+    surukleyenIdx = parseInt(tr.dataset.origIdx, 10);
+    tr.classList.add("tr-dragging");
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(surukleyenIdx));
+  });
+  tbody?.addEventListener("dragend", (e) => {
+    const tr = e.target.closest("tr.tr-draggable");
+    if (tr) tr.classList.remove("tr-dragging");
+    tbody.querySelectorAll(".tr-drag-over").forEach((el) => el.classList.remove("tr-drag-over"));
+    surukleyenIdx = null;
+  });
+  tbody?.addEventListener("dragover", (e) => {
+    if (surukleyenIdx === null) return;
+    const tr = e.target.closest("tr.tr-draggable");
+    if (!tr) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    tbody.querySelectorAll(".tr-drag-over").forEach((el) => el.classList.remove("tr-drag-over"));
+    tr.classList.add("tr-drag-over");
+  });
+  tbody?.addEventListener("drop", (e) => {
+    if (surukleyenIdx === null) return;
+    const tr = e.target.closest("tr.tr-draggable");
+    if (!tr) return;
+    e.preventDefault();
+    const hedefIdx = parseInt(tr.dataset.origIdx, 10);
+    if (hedefIdx === surukleyenIdx) return;
+    aktifCallbacks?.onSiraDegistir?.(surukleyenIdx, hedefIdx);
+  });
+
+  // Header click → sort, resize handle drag → column width
+  thead?.addEventListener("click", (e) => {
+    if (e.target.classList.contains("th-resize-handle")) return;
+    const th = e.target.closest("th[data-col-idx]");
+    if (!th) return;
+    const ci = parseInt(th.dataset.colIdx, 10);
+    if (sortKolon === ci) {
+      sortYon = sortYon === "asc" ? "desc" : sortYon === "desc" ? null : "asc";
+      if (sortYon === null) sortKolon = null;
+    } else {
+      sortKolon = ci;
+      sortYon = "asc";
+    }
+    if (aktifCallbacks?.onSortDegistir && sortKolon !== null) {
+      aktifCallbacks.onSortDegistir(sortKolon, sortYon);
+    } else {
+      csvTabloGuncelle(aktifBasliklar, aktifSatirlar, aktifCallbacks);
+    }
+  });
+  thead?.addEventListener("mousedown", (e) => {
+    if (!e.target.classList.contains("th-resize-handle")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const handle = e.target;
+    const th = handle.closest("th");
+    const headerName = handle.dataset.colHeader;
+    const startX = e.clientX;
+    const startWidth = th.offsetWidth;
+    const move = (ev) => {
+      const w = Math.max(40, startWidth + (ev.clientX - startX));
+      th.style.width = w + "px";
+    };
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      const g = genisliklerYukle();
+      g[headerName] = th.offsetWidth;
+      genisliklerKaydet(g);
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  });
+  thead?.addEventListener("dblclick", (e) => {
+    if (!e.target.classList.contains("th-resize-handle")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const handle = e.target;
+    const th = handle.closest("th");
+    th.style.width = "";
+    const g = genisliklerYukle();
+    delete g[handle.dataset.colHeader];
+    genisliklerKaydet(g);
+  });
+
+  // Document-level: range Delete / Ctrl+C / Ctrl+V / Esc
+  document.addEventListener("keydown", (e) => {
+    if (!aktifCallbacks) return;
+    if (!rangeCoklu()) return;
+    // Don't override default behavior while a span is being edited
+    if (document.activeElement?.classList?.contains("td-kanal-adi")) return;
+    const k = rangeKoor();
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      aktifCallbacks.onRangeBosalt?.(k.r1, k.r2, k.c1, k.c2);
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+      e.preventDefault();
+      const lines = [];
+      for (let r = k.r1; r <= k.r2; r++) {
+        const cells = [];
+        for (let c = k.c1; c <= k.c2; c++) cells.push(String(aktifSatirlar[r]?.[c] ?? ""));
+        lines.push(cells.join("\t"));
+      }
+      navigator.clipboard?.writeText(lines.join("\n"));
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+      e.preventDefault();
+      navigator.clipboard?.readText().then((text) => {
+        if (text) aktifCallbacks.onRangePaste?.(k.r1, k.c1, text);
+      });
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      rangeTemizle();
+    }
+  });
+
+  // Shift+wheel → horizontal scroll on the table container
+  const container = tablo.closest(".table-container");
+  if (container) {
+    container.addEventListener("wheel", (e) => {
+      if (!e.shiftKey) return;
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    }, { passive: false });
+  }
+}
+
+// ─── Pagination + compact toggle + help button ──────────────────────────────
+
+function renderPaginasyon(tablo, toplamSayfa) {
   let navEl = document.getElementById("tablo-paginasyon");
   if (!navEl) {
     navEl = document.createElement("div");
@@ -386,176 +527,125 @@ function renderPaginasyon(tablo, toplamGorunur, toplamSayfa, basliklar, satirlar
   }
   navEl.replaceChildren();
 
-  // Page size selector
+  // Page size
   const sizeDiv = document.createElement("div");
-  sizeDiv.style.cssText = "display:flex;align-items:center;gap:6px;";
+  sizeDiv.style.cssText = "display:flex;align-items:center;gap:8px;";
   const sizeLabel = document.createElement("span");
-  sizeLabel.textContent = "Sayfa boyutu:";
+  sizeLabel.textContent = "Sayfa:";
   sizeLabel.style.color = "var(--text-muted)";
   const sizeSelect = document.createElement("select");
   sizeSelect.setAttribute("aria-label", "Sayfa boyutu");
   sizeSelect.style.cssText = "width:auto;padding:4px 8px;font-size:0.82rem;";
-  for (const size of [50, 100, 250, 0]) {
+  for (const size of [50, 100, 250, 500]) {
     const opt = document.createElement("option");
     opt.value = size;
-    opt.textContent = size === 0 ? "Tumu" : String(size);
+    opt.textContent = String(size);
     if (size === sayfaBoyutu) opt.selected = true;
     sizeSelect.appendChild(opt);
   }
   sizeSelect.addEventListener("change", () => {
     sayfaBoyutu = parseInt(sizeSelect.value);
     mevcutSayfa = 1;
-    csvTabloGuncelle(basliklar, satirlar, callbacks);
+    csvTabloGuncelle(aktifBasliklar, aktifSatirlar, aktifCallbacks);
   });
   sizeDiv.appendChild(sizeLabel);
   sizeDiv.appendChild(sizeSelect);
+
+  // Compact toggle
+  const kompaktBtn = document.createElement("button");
+  kompaktBtn.type = "button";
+  kompaktBtn.className = "btn-secondary btn-sm";
+  kompaktBtn.textContent = kompaktMod ? "Genis" : "Kompakt";
+  kompaktBtn.title = "Yogun goruntu — daha cok satir gorunur";
+  kompaktBtn.addEventListener("click", () => {
+    kompaktMod = !kompaktMod;
+    localStorage.setItem(KOMPAKT_KEY, kompaktMod ? "1" : "0");
+    csvTabloGuncelle(aktifBasliklar, aktifSatirlar, aktifCallbacks);
+  });
+  sizeDiv.appendChild(kompaktBtn);
+
+  // Keyboard help
+  const helpBtn = document.createElement("button");
+  helpBtn.type = "button";
+  helpBtn.className = "btn-secondary btn-sm";
+  helpBtn.textContent = "?";
+  helpBtn.title = "Klavye kisayollari";
+  helpBtn.style.cssText = "width:28px;padding:0;";
+  helpBtn.addEventListener("click", yardimGoster);
+  sizeDiv.appendChild(helpBtn);
+
   navEl.appendChild(sizeDiv);
 
   if (toplamSayfa <= 1) return;
-
-  // Page navigation
   const pageDiv = document.createElement("div");
   pageDiv.style.cssText = "display:flex;align-items:center;gap:6px;";
-
   const prevBtn = document.createElement("button");
   prevBtn.type = "button";
   prevBtn.className = "btn-secondary btn-sm";
-  prevBtn.textContent = "← Onceki";
+  prevBtn.textContent = "\u2190 Onceki";
   prevBtn.disabled = mevcutSayfa <= 1;
   prevBtn.addEventListener("click", () => {
-    if (mevcutSayfa > 1) { mevcutSayfa--; csvTabloGuncelle(basliklar, satirlar, callbacks); }
+    if (mevcutSayfa > 1) { mevcutSayfa--; csvTabloGuncelle(aktifBasliklar, aktifSatirlar, aktifCallbacks); }
   });
-
   const pageInfo = document.createElement("span");
   pageInfo.style.color = "var(--text-muted)";
   pageInfo.textContent = `Sayfa ${mevcutSayfa} / ${toplamSayfa}`;
-
   const nextBtn = document.createElement("button");
   nextBtn.type = "button";
   nextBtn.className = "btn-secondary btn-sm";
-  nextBtn.textContent = "Sonraki →";
+  nextBtn.textContent = "Sonraki \u2192";
   nextBtn.disabled = mevcutSayfa >= toplamSayfa;
   nextBtn.addEventListener("click", () => {
-    if (mevcutSayfa < toplamSayfa) { mevcutSayfa++; csvTabloGuncelle(basliklar, satirlar, callbacks); }
+    if (mevcutSayfa < toplamSayfa) { mevcutSayfa++; csvTabloGuncelle(aktifBasliklar, aktifSatirlar, aktifCallbacks); }
   });
-
-  pageDiv.appendChild(prevBtn);
-  pageDiv.appendChild(pageInfo);
-  pageDiv.appendChild(nextBtn);
+  pageDiv.append(prevBtn, pageInfo, nextBtn);
   navEl.appendChild(pageDiv);
 }
 
-function selectAll(el) {
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-function rangeKoordinatlari() {
-  if (!rangeAncor || !rangeFocus) return null;
-  const r1 = Math.min(rangeAncor.rowIdx, rangeFocus.rowIdx);
-  const r2 = Math.max(rangeAncor.rowIdx, rangeFocus.rowIdx);
-  const c1 = Math.min(rangeAncor.colIdx, rangeFocus.colIdx);
-  const c2 = Math.max(rangeAncor.colIdx, rangeFocus.colIdx);
-  return { r1, r2, c1, c2 };
-}
-
-function rangeCokluHucreMi() {
-  const k = rangeKoordinatlari();
-  if (!k) return false;
-  return k.r1 !== k.r2 || k.c1 !== k.c2;
-}
-
-document.addEventListener("keydown", (e) => {
-  if (!rangeCallbacks) return;
-  const k = rangeKoordinatlari();
-  if (!k) return;
-  // Suppress range ops while a span is being edited (so single-cell typing keeps working)
-  if (document.activeElement && document.activeElement.classList?.contains("td-kanal-adi") && rangeCokluHucreMi() === false) {
-    return;
+let yardimModalEl = null;
+function yardimGoster() {
+  if (yardimModalEl) { yardimModalEl.style.display = "flex"; return; }
+  const overlay = document.createElement("div");
+  overlay.className = "yardim-overlay";
+  const panel = document.createElement("div");
+  panel.className = "yardim-panel";
+  const baslik = document.createElement("h3");
+  baslik.textContent = "Klavye kisayollari";
+  const kapat = document.createElement("button");
+  kapat.type = "button";
+  kapat.className = "btn-sil";
+  kapat.textContent = "\u00D7";
+  kapat.style.cssText = "position:absolute;top:8px;right:8px;";
+  kapat.addEventListener("click", () => { overlay.style.display = "none"; });
+  const list = document.createElement("dl");
+  list.className = "yardim-list";
+  const items = [
+    ["Tab / Shift+Tab", "Yatay sutun gecisi"],
+    ["\u2191 \u2193 \u2190 \u2192", "Hucre gezinme (\u2190\u2192 sadece kenardayken)"],
+    ["Enter", "Duzenlemeyi onayla"],
+    ["Esc", "Duzenlemeyi iptal et"],
+    ["Ctrl/Cmd + C / V", "Tek hucre kopyala/yapistir"],
+    ["Shift + Click", "Hucre aralik secimi"],
+    ["Delete (aralik secili)", "Aralikta hucreleri bosalt"],
+    ["Ctrl/Cmd + C (aralik)", "Aralik TSV olarak kopyalanir (Excel'e direkt)"],
+    ["Ctrl/Cmd + V (aralik)", "TSV'yi araligin sol-ust kosesinden yapistir"],
+    ["Ctrl/Cmd + F", "Bul ve degistir"],
+    ["Ctrl/Cmd + Z / Shift+Z", "Geri al / Ileri al"],
+    ["Surukle-birak (#)", "Satiri yeniden sirala"],
+    ["Sutun basligi", "Tikla: sirala (asc/desc/temiz)"],
+    ["Sutun kenari", "Suruke: yeniden boyutlandir, cift tikla: sifirla"],
+    ["Shift + Tekerlek", "Yatay kaydirma"],
+  ];
+  for (const [k, v] of items) {
+    const dt = document.createElement("dt");
+    dt.textContent = k;
+    const dd = document.createElement("dd");
+    dd.textContent = v;
+    list.append(dt, dd);
   }
-  // Delete: clear all cells in the range
-  if (rangeCokluHucreMi() && (e.key === "Delete" || e.key === "Backspace")) {
-    e.preventDefault();
-    if (rangeCallbacks.callbacks?.onRangeBosalt) {
-      rangeCallbacks.callbacks.onRangeBosalt(k.r1, k.r2, k.c1, k.c2);
-    }
-    return;
-  }
-  // Ctrl+C on a multi-cell range → TSV
-  if (rangeCokluHucreMi() && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
-    e.preventDefault();
-    const { satirlar } = rangeCallbacks;
-    const lines = [];
-    for (let r = k.r1; r <= k.r2; r++) {
-      const cells = [];
-      for (let c = k.c1; c <= k.c2; c++) {
-        cells.push(String(satirlar[r]?.[c] ?? ""));
-      }
-      lines.push(cells.join("\t"));
-    }
-    navigator.clipboard?.writeText(lines.join("\n"));
-    return;
-  }
-  // Ctrl+V on a multi-cell range → parse TSV, fill from top-left of range
-  if (rangeCokluHucreMi() && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
-    e.preventDefault();
-    navigator.clipboard?.readText().then((text) => {
-      if (!text) return;
-      if (rangeCallbacks.callbacks?.onRangePaste) {
-        rangeCallbacks.callbacks.onRangePaste(k.r1, k.c1, text);
-      }
-    });
-    return;
-  }
-  // Esc clears the range
-  if (e.key === "Escape" && rangeCokluHucreMi()) {
-    e.preventDefault();
-    rangeTemizle();
-  }
-});
-
-let surukleyenIdx = null;
-
-function surukleBirakKur(tbody, satirlar, basliklar, callbacks) {
-  tbody.addEventListener("dragstart", (e) => {
-    const tr = e.target.closest("tr.tr-draggable");
-    if (!tr) return;
-    surukleyenIdx = parseInt(tr.dataset.origIdx, 10);
-    tr.classList.add("tr-dragging");
-    e.dataTransfer.effectAllowed = "move";
-    // Firefox needs payload to start the drag
-    e.dataTransfer.setData("text/plain", String(surukleyenIdx));
-  });
-
-  tbody.addEventListener("dragend", (e) => {
-    const tr = e.target.closest("tr.tr-draggable");
-    if (tr) tr.classList.remove("tr-dragging");
-    tbody.querySelectorAll(".tr-drag-over").forEach((el) => el.classList.remove("tr-drag-over"));
-    surukleyenIdx = null;
-  });
-
-  tbody.addEventListener("dragover", (e) => {
-    if (surukleyenIdx === null) return;
-    const tr = e.target.closest("tr.tr-draggable");
-    if (!tr) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    tbody.querySelectorAll(".tr-drag-over").forEach((el) => el.classList.remove("tr-drag-over"));
-    tr.classList.add("tr-drag-over");
-  });
-
-  tbody.addEventListener("drop", (e) => {
-    if (surukleyenIdx === null) return;
-    const tr = e.target.closest("tr.tr-draggable");
-    if (!tr) return;
-    e.preventDefault();
-    const hedefIdx = parseInt(tr.dataset.origIdx, 10);
-    if (hedefIdx === surukleyenIdx) return;
-    if (callbacks?.onSiraDegistir) {
-      callbacks.onSiraDegistir(surukleyenIdx, hedefIdx);
-    }
-  });
+  panel.append(baslik, kapat, list);
+  overlay.appendChild(panel);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.style.display = "none"; });
+  document.body.appendChild(overlay);
+  yardimModalEl = overlay;
 }
