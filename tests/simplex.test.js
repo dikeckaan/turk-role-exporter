@@ -34,3 +34,35 @@ describe("secilenSimplexFrekanslari", () => {
     assert.equal(out.length, 0);
   });
 });
+
+import { presetDeserialize } from "../docs/js/presets.js";
+
+describe("preset v2 → v3 migration", () => {
+  it("simplexEkle:true olan v2 preseti dijitalSimplexEkle ve tüm dijital kanallarla migrate eder", () => {
+    const v2 = {
+      version: 2,
+      opsiyonlar: { simplexEkle: true, pmrEkle: false },
+      airbandSecim: {},
+      marineSecim:  {},
+    };
+    const out = presetDeserialize(v2);
+    assert.equal(out.opsiyonlar.dijitalSimplexEkle, true);
+    assert.equal(out.opsiyonlar.fmSimplexEkle, false);
+    assert.equal(out.opsiyonlar.simplexEkle, undefined);
+    assert.deepEqual(out.dijitalSimplexSecim.vhf, ["DV1", "DV2", "DV3", "DV4"]);
+    assert.deepEqual(out.dijitalSimplexSecim.uhf, ["DU1", "DU2", "DU3", "DU4"]);
+  });
+
+  it("v3 preset'i olduğu gibi kalır", () => {
+    const v3 = {
+      version: 3,
+      opsiyonlar: { dijitalSimplexEkle: false, fmSimplexEkle: true },
+      fmSimplexSecim: { vhf: ["V01"], uhf: [] },
+      dijitalSimplexSecim: { vhf: [], uhf: [] },
+      airbandSecim: {}, marineSecim: {},
+    };
+    const out = presetDeserialize(v3);
+    assert.equal(out.opsiyonlar.fmSimplexEkle, true);
+    assert.deepEqual(out.fmSimplexSecim.vhf, ["V01"]);
+  });
+});

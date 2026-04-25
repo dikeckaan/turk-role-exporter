@@ -7,7 +7,7 @@ import { state } from "./state.js";
 
 const STORAGE_KEY = "roleExporterPresets";
 const MAX_PRESETS = 10;
-const PRESET_VERSION = 2;
+const PRESET_VERSION = 3;
 
 /**
  * Serialize a preset-like object to JSON string with the current schema.
@@ -18,6 +18,8 @@ export function presetSerialize(obj) {
     version: PRESET_VERSION,
     airbandSecim: obj.airbandSecim || { iller: [], havalimanlari: {} },
     marineSecim:  obj.marineSecim  || { vhf: [], sar: [], sahil: [] },
+    fmSimplexSecim:      obj.fmSimplexSecim      || { vhf: [], uhf: [] },
+    dijitalSimplexSecim: obj.dijitalSimplexSecim || { vhf: [], uhf: [] },
     opsiyonlar: obj.opsiyonlar || {},
     filtreler:  obj.filtreler  || {},
     cihaz:      obj.cihaz || null,
@@ -34,6 +36,23 @@ export function presetDeserialize(raw) {
   const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
   const airband = parsed.airbandSecim || {};
   const marine  = parsed.marineSecim  || {};
+  const fmSx    = parsed.fmSimplexSecim || {};
+  const dijSx   = parsed.dijitalSimplexSecim || {};
+  const opsiyonlar = { ...(parsed.opsiyonlar || {}) };
+
+  // v2 → v3 migration: simplexEkle (boolean) → dijitalSimplexEkle (true) + tum dijital frekanslar secili
+  if ((parsed.version || 0) < 3 && opsiyonlar.simplexEkle === true) {
+    opsiyonlar.dijitalSimplexEkle = true;
+    opsiyonlar.fmSimplexEkle = false;
+    if (!Array.isArray(dijSx.vhf) || dijSx.vhf.length === 0) {
+      dijSx.vhf = ["DV1", "DV2", "DV3", "DV4"];
+    }
+    if (!Array.isArray(dijSx.uhf) || dijSx.uhf.length === 0) {
+      dijSx.uhf = ["DU1", "DU2", "DU3", "DU4"];
+    }
+  }
+  delete opsiyonlar.simplexEkle;
+
   return {
     airbandSecim: {
       iller: Array.isArray(airband.iller) ? airband.iller : [],
@@ -45,7 +64,15 @@ export function presetDeserialize(raw) {
       sar:   Array.isArray(marine.sar)   ? marine.sar   : [],
       sahil: Array.isArray(marine.sahil) ? marine.sahil : [],
     },
-    opsiyonlar: parsed.opsiyonlar || {},
+    fmSimplexSecim: {
+      vhf: Array.isArray(fmSx.vhf) ? fmSx.vhf : [],
+      uhf: Array.isArray(fmSx.uhf) ? fmSx.uhf : [],
+    },
+    dijitalSimplexSecim: {
+      vhf: Array.isArray(dijSx.vhf) ? dijSx.vhf : [],
+      uhf: Array.isArray(dijSx.uhf) ? dijSx.uhf : [],
+    },
+    opsiyonlar,
     filtreler:  parsed.filtreler  || {},
     cihaz:      parsed.cihaz || null,
     ad:         parsed.ad || null,
@@ -75,6 +102,8 @@ export function presetKaydet(ad, filtreTopla, opsiyonTopla, seciliCihaz) {
     opsiyonlar: opsiyonTopla(),
     airbandSecim: state.airbandSecim,
     marineSecim:  state.marineSecim,
+    fmSimplexSecim:      state.fmSimplexSecim,
+    dijitalSimplexSecim: state.dijitalSimplexSecim,
   }));
   // Replace existing with same name, or add new
   const idx = presets.findIndex(p => p.ad === ad);

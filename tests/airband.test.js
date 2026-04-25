@@ -78,9 +78,9 @@ describe("preset airband/marine roundtrip", () => {
     assert.deepEqual(back.airbandSecim, { iller: ["X"], havalimanlari: {} });
   });
 
-  it("serialize writes version 2", () => {
+  it("serialize writes version 3", () => {
     const serialized = presetSerialize({});
     const parsed = JSON.parse(serialized);
-    assert.equal(parsed.version, 2);
+    assert.equal(parsed.version, 3);
   });
 });

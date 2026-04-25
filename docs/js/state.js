@@ -16,6 +16,8 @@ export const state = {
   marineData: null,
   airbandSecim: { iller: [], havalimanlari: {} },
   marineSecim: { vhf: [], sar: [], sahil: [] },
+  fmSimplexSecim:      { vhf: ["V01", "VSB"], uhf: ["U01", "USB"] },
+  dijitalSimplexSecim: { vhf: [], uhf: [] },
 
   duzenlenmisRoleler: [],
   csvBasliklar: [],
