@@ -160,6 +160,11 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     thead.replaceChildren();
     const tr = document.createElement("tr");
 
+    const thIslem = document.createElement("th");
+    thIslem.className = "th-islem";
+    thIslem.textContent = "";
+    tr.appendChild(thIslem);
+
     const thSira = document.createElement("th");
     thSira.className = "th-sira";
     thSira.textContent = "#";
@@ -190,11 +195,6 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       tr.appendChild(th);
     });
 
-    const thIslem = document.createElement("th");
-    thIslem.className = "th-islem";
-    thIslem.textContent = "";
-    tr.appendChild(thIslem);
-
     thead.appendChild(tr);
   }
 
@@ -220,6 +220,17 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       tr.classList.add("tr-draggable");
     }
 
+    const islemTd = document.createElement("td");
+    islemTd.className = "td-islem";
+    const silBtn = document.createElement("button");
+    silBtn.type = "button";
+    silBtn.className = "btn-sil";
+    silBtn.textContent = "\u00D7";
+    silBtn.title = "Satiri sil";
+    silBtn.dataset.action = "sil";
+    islemTd.appendChild(silBtn);
+    tr.appendChild(islemTd);
+
     const siraTd = document.createElement("td");
     siraTd.className = "td-sira";
     siraTd.contentEditable = "true";
@@ -242,17 +253,6 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       td.appendChild(span);
       tr.appendChild(td);
     }
-
-    const islemTd = document.createElement("td");
-    islemTd.className = "td-islem";
-    const silBtn = document.createElement("button");
-    silBtn.type = "button";
-    silBtn.className = "btn-sil";
-    silBtn.textContent = "\u00D7";
-    silBtn.title = "Satiri sil";
-    silBtn.dataset.action = "sil";
-    islemTd.appendChild(silBtn);
-    tr.appendChild(islemTd);
 
     frag.appendChild(tr);
   }
