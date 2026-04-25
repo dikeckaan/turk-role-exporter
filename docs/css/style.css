@@ -1330,7 +1330,8 @@ input[type="number"]:focus {
 /* Keyboard shortcut help modal */
 .yardim-overlay {
   position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -1340,33 +1341,77 @@ input[type="number"]:focus {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px 28px;
-  max-width: 520px;
-  max-height: 80vh;
+  border-radius: 14px;
+  padding: 24px 28px 28px 28px;
+  width: min(640px, 92vw);
+  max-height: 86vh;
   overflow-y: auto;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
 }
 .yardim-panel h3 {
-  margin: 0 0 16px 0;
-  font-size: 1.1rem;
+  margin: 0 0 4px 0;
+  font-size: 1.2rem;
 }
-.yardim-list {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 6px 16px;
-  margin: 0;
+.yardim-altbaslik {
+  margin: 0 0 18px 0;
+  color: var(--text-muted);
   font-size: 0.88rem;
 }
-.yardim-list dt {
+.yardim-bolum-baslik {
+  margin: 18px 0 8px 0;
+  font-size: 0.95rem;
   color: var(--accent);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.82rem;
-  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  font-weight: 600;
 }
-.yardim-list dd {
+.yardim-bolum-list {
+  list-style: none;
   margin: 0;
+  padding: 0;
+}
+.yardim-bolum-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.yardim-bolum-list li:last-child { border-bottom: none; }
+.yardim-keys {
+  flex-shrink: 0;
+  min-width: 120px;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.yardim-acik {
   color: var(--text);
+  flex: 1;
+}
+.yardim-sep {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 0 2px;
+}
+.yardim-panel kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+  min-width: 22px;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .td-sira {

@@ -659,49 +659,127 @@ function renderPaginasyon(tablo, toplamSayfa) {
 }
 
 let yardimModalEl = null;
+function kbd(text) {
+  const el = document.createElement("kbd");
+  el.textContent = text;
+  return el;
+}
+function kbdRow(parts) {
+  // parts: array of strings — strings turn into <kbd>, "+" stays plain
+  const span = document.createElement("span");
+  span.className = "yardim-keys";
+  for (const p of parts) {
+    if (p === "+" || p === "/") {
+      const sep = document.createElement("span");
+      sep.className = "yardim-sep";
+      sep.textContent = " " + p + " ";
+      span.appendChild(sep);
+    } else {
+      span.appendChild(kbd(p));
+    }
+  }
+  return span;
+}
+
 function yardimGoster() {
   if (yardimModalEl) { yardimModalEl.style.display = "flex"; return; }
   const overlay = document.createElement("div");
   overlay.className = "yardim-overlay";
   const panel = document.createElement("div");
   panel.className = "yardim-panel";
+
   const baslik = document.createElement("h3");
-  baslik.textContent = "Klavye kisayollari";
+  baslik.textContent = "Klavye Kısayolları";
+  const altBaslik = document.createElement("p");
+  altBaslik.className = "yardim-altbaslik";
+  altBaslik.textContent = "CSV editörünü Excel hızında kullan.";
+
   const kapat = document.createElement("button");
   kapat.type = "button";
   kapat.className = "btn-sil";
   kapat.textContent = "\u00D7";
-  kapat.style.cssText = "position:absolute;top:8px;right:8px;";
+  kapat.style.cssText = "position:absolute;top:10px;right:10px;";
   kapat.addEventListener("click", () => { overlay.style.display = "none"; });
-  const list = document.createElement("dl");
-  list.className = "yardim-list";
-  const items = [
-    ["Tab / Shift+Tab", "Yatay sutun gecisi"],
-    ["\u2191 \u2193 \u2190 \u2192", "Hucre gezinme (\u2190\u2192 sadece kenardayken)"],
-    ["Enter", "Duzenlemeyi onayla"],
-    ["Esc", "Duzenlemeyi iptal et"],
-    ["Ctrl/Cmd + C / V", "Tek hucre kopyala/yapistir"],
-    ["Shift + Click", "Hucre aralik secimi"],
-    ["Delete (aralik secili)", "Aralikta hucreleri bosalt"],
-    ["Ctrl/Cmd + C (aralik)", "Aralik TSV olarak kopyalanir (Excel'e direkt)"],
-    ["Ctrl/Cmd + V (aralik)", "TSV'yi araligin sol-ust kosesinden yapistir"],
-    ["Ctrl/Cmd + F", "Bul ve degistir"],
-    ["Ctrl/Cmd + Z / Shift+Z", "Geri al / Ileri al"],
-    ["Surukle-birak (#)", "Satiri yeniden sirala"],
-    ["Sutun basligi", "Tikla: sirala (asc/desc/temiz)"],
-    ["Sutun kenari", "Suruke: yeniden boyutlandir, cift tikla: sifirla"],
-    ["Shift + Tekerlek", "Yatay kaydirma"],
+
+  const bolumler = [
+    {
+      ad: "Düzenleme",
+      satirlar: [
+        { keys: [], aciklama: "Hücreye tıkla, üzerine yaz" },
+        { keys: ["Enter"], aciklama: "Değişikliği kaydet, çık" },
+        { keys: ["Esc"], aciklama: "Vazgeç, eski değere dön" },
+        { keys: ["Ctrl/⌘", "+", "Z"], aciklama: "Son değişikliği geri al" },
+        { keys: ["Ctrl/⌘", "+", "Shift", "+", "Z"], aciklama: "İleri al" },
+      ],
+    },
+    {
+      ad: "Hücre arası gezinme",
+      satirlar: [
+        { keys: ["Tab"], aciklama: "Sağdaki hücreye geç" },
+        { keys: ["Shift", "+", "Tab"], aciklama: "Soldaki hücreye geç" },
+        { keys: ["↑"], aciklama: "Üstteki hücreye" },
+        { keys: ["↓"], aciklama: "Alttaki hücreye" },
+        { keys: ["←", "/", "→"], aciklama: "Yatay (sadece imleç hücre kenarındayken)" },
+        { keys: ["Shift", "+", "Tekerlek"], aciklama: "Tabloyu yatay kaydır" },
+      ],
+    },
+    {
+      ad: "Kopyala / yapıştır",
+      satirlar: [
+        { keys: ["Ctrl/⌘", "+", "C"], aciklama: "Tek hücreyi kopyala" },
+        { keys: ["Ctrl/⌘", "+", "V"], aciklama: "Tek hücreyi yapıştır (üzerine yazar)" },
+        { keys: ["Shift", "+", "Tıkla"], aciklama: "Hücre aralığı seç (mavi vurgu)" },
+        { keys: ["Ctrl/⌘", "+", "C"], aciklama: "Aralığı seçtikten sonra: TSV olarak kopyala (Excel'e direkt yapıştırılır)" },
+        { keys: ["Ctrl/⌘", "+", "V"], aciklama: "Aralık seçiliyken: TSV'yi sol-üst köşeden başlayarak yapıştır" },
+        { keys: ["Delete"], aciklama: "Aralık seçiliyken: aralıktaki tüm hücreleri boşalt" },
+        { keys: ["Esc"], aciklama: "Aralık seçimini temizle" },
+      ],
+    },
+    {
+      ad: "Satır ve sütun",
+      satirlar: [
+        { keys: [], aciklama: "# kolonuna sayı yaz, Enter → satır o konuma animasyonla taşınır" },
+        { keys: [], aciklama: "Satırı sürükle (× ve hücre dışından) → yeni konumuna bırak" },
+        { keys: [], aciklama: "Sütun başlığına tıkla → A→Z, Z→A, sıfırla (3 hâl)" },
+        { keys: [], aciklama: "Sütun kenarını sürükle → genişliği değiştir, çift tıkla → sıfırla" },
+        { keys: ["×"], aciklama: "Sol baştaki kırmızı düğme → satırı sil" },
+      ],
+    },
+    {
+      ad: "Arama",
+      satirlar: [
+        { keys: ["Ctrl/⌘", "+", "F"], aciklama: "Bul ve değiştir paneli (regex + büyük/küçük harf)" },
+        { keys: ["Enter"], aciklama: "Bul kutusunda: sonraki eşleşmeye geç" },
+        { keys: ["Shift", "+", "Enter"], aciklama: "Önceki eşleşmeye geç" },
+      ],
+    },
   ];
-  for (const [k, v] of items) {
-    const dt = document.createElement("dt");
-    dt.textContent = k;
-    const dd = document.createElement("dd");
-    dd.textContent = v;
-    list.append(dt, dd);
+
+  panel.append(baslik, altBaslik, kapat);
+  for (const bolum of bolumler) {
+    const h4 = document.createElement("h4");
+    h4.className = "yardim-bolum-baslik";
+    h4.textContent = bolum.ad;
+    panel.appendChild(h4);
+    const ul = document.createElement("ul");
+    ul.className = "yardim-bolum-list";
+    for (const sat of bolum.satirlar) {
+      const li = document.createElement("li");
+      if (sat.keys.length > 0) li.appendChild(kbdRow(sat.keys));
+      const acik = document.createElement("span");
+      acik.className = "yardim-acik";
+      acik.textContent = sat.aciklama;
+      li.appendChild(acik);
+      ul.appendChild(li);
+    }
+    panel.appendChild(ul);
   }
-  panel.append(baslik, kapat, list);
+
   overlay.appendChild(panel);
   overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.style.display = "none"; });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && overlay.style.display !== "none") overlay.style.display = "none";
+  });
   document.body.appendChild(overlay);
   yardimModalEl = overlay;
 }
