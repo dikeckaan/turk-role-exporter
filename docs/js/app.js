@@ -282,6 +282,18 @@ function csvTabloCallbacks() {
         state.csvSatirlar[rowIndex][colIndex] = value;
       }
     },
+    onSiraDegistir: (eskiIdx, hedefIdx) => {
+      if (eskiIdx === hedefIdx) return;
+      if (!state.csvSatirlar[eskiIdx] || !state.csvSatirlar[hedefIdx]) return;
+      undoKaydet(state.csvSatirlar);
+      const [tasinan] = state.csvSatirlar.splice(eskiIdx, 1);
+      state.csvSatirlar.splice(hedefIdx, 0, tasinan);
+      // Renumber the location/index column (col 0) so it stays sequential.
+      for (let i = 0; i < state.csvSatirlar.length; i++) {
+        state.csvSatirlar[i][0] = String(i + 1);
+      }
+      csvTabloYenile();
+    },
   };
 }
 

@@ -71,10 +71,21 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
   if (!tbody) return;
   tbody.replaceChildren();
 
+  // Drag-drop only safe when there's no filter and we render every row.
+  // Otherwise the displayed row index doesn't map cleanly to state.csvSatirlar.
+  const dragEnabled = !aramaMetni && gorunurIndexler.length === satirlar.length;
+
   for (let vi = 0; vi < sayfaIndexler.length; vi++) {
     const origIdx = sayfaIndexler[vi];
     const row = satirlar[origIdx];
     const tr = document.createElement("tr");
+    tr.dataset.origIdx = String(origIdx);
+    if (dragEnabled) {
+      tr.draggable = true;
+      tr.classList.add("tr-draggable");
+    } else {
+      tr.title = "Surukle-birak icin filtreyi temizleyin ve sayfa boyutunu 'Tumu' yapin";
+    }
 
     const siraTd = document.createElement("td");
     siraTd.className = "td-sira";
@@ -91,6 +102,10 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       span.setAttribute("role", "textbox");
       span.setAttribute("aria-label", basliklar[ci] || `Sutun ${ci + 1}`);
 
+      const orijinalDeger = row[ci];
+      span.addEventListener("focus", () => {
+        span.dataset.orijinal = span.textContent;
+      });
       span.addEventListener("blur", () => {
         const yeni = span.textContent;
         if (yeni !== row[ci] && callbacks?.onHucreDegistir) {
@@ -98,14 +113,43 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
         }
       });
       span.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); span.blur(); }
-        if (e.key === "Tab") {
-          e.preventDefault();
+        if (e.key === "Enter") { e.preventDefault(); span.blur(); return; }
+        if (e.key === "Escape") {
+          // Revert to original value and blur without saving
+          span.textContent = span.dataset.orijinal ?? orijinalDeger;
           span.blur();
-          const next = e.shiftKey
+          return;
+        }
+        if (e.key === "Tab" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          // Horizontal nav: Tab always moves; arrows only when cursor is at the cell boundary
+          if (e.key !== "Tab") {
+            const sel = window.getSelection();
+            const collapsed = sel.isCollapsed;
+            const offset = sel.focusOffset;
+            const len = span.textContent.length;
+            if (e.key === "ArrowLeft" && (!collapsed || offset > 0)) return;
+            if (e.key === "ArrowRight" && (!collapsed || offset < len)) return;
+          }
+          e.preventDefault();
+          const goLeft = (e.key === "Tab" && e.shiftKey) || e.key === "ArrowLeft";
+          span.blur();
+          const next = goLeft
             ? td.previousElementSibling?.querySelector(".td-kanal-adi")
             : td.nextElementSibling?.querySelector(".td-kanal-adi");
           if (next) { next.focus(); selectAll(next); }
+          return;
+        }
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const colIdx = Array.from(tr.children).indexOf(td);
+          const targetTr = e.key === "ArrowUp" ? tr.previousElementSibling : tr.nextElementSibling;
+          const targetTd = targetTr?.children[colIdx];
+          const target = targetTd?.querySelector(".td-kanal-adi");
+          if (target) {
+            span.blur();
+            target.focus();
+            selectAll(target);
+          }
         }
       });
 
@@ -128,6 +172,10 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     tr.appendChild(islemTd);
 
     tbody.appendChild(tr);
+  }
+
+  if (dragEnabled) {
+    surukleBirakKur(tbody, satirlar, basliklar, callbacks);
   }
 
   // Info
@@ -215,4 +263,47 @@ function selectAll(el) {
   const sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
+}
+
+let surukleyenIdx = null;
+
+function surukleBirakKur(tbody, satirlar, basliklar, callbacks) {
+  tbody.addEventListener("dragstart", (e) => {
+    const tr = e.target.closest("tr.tr-draggable");
+    if (!tr) return;
+    surukleyenIdx = parseInt(tr.dataset.origIdx, 10);
+    tr.classList.add("tr-dragging");
+    e.dataTransfer.effectAllowed = "move";
+    // Firefox needs payload to start the drag
+    e.dataTransfer.setData("text/plain", String(surukleyenIdx));
+  });
+
+  tbody.addEventListener("dragend", (e) => {
+    const tr = e.target.closest("tr.tr-draggable");
+    if (tr) tr.classList.remove("tr-dragging");
+    tbody.querySelectorAll(".tr-drag-over").forEach((el) => el.classList.remove("tr-drag-over"));
+    surukleyenIdx = null;
+  });
+
+  tbody.addEventListener("dragover", (e) => {
+    if (surukleyenIdx === null) return;
+    const tr = e.target.closest("tr.tr-draggable");
+    if (!tr) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    tbody.querySelectorAll(".tr-drag-over").forEach((el) => el.classList.remove("tr-drag-over"));
+    tr.classList.add("tr-drag-over");
+  });
+
+  tbody.addEventListener("drop", (e) => {
+    if (surukleyenIdx === null) return;
+    const tr = e.target.closest("tr.tr-draggable");
+    if (!tr) return;
+    e.preventDefault();
+    const hedefIdx = parseInt(tr.dataset.origIdx, 10);
+    if (hedefIdx === surukleyenIdx) return;
+    if (callbacks?.onSiraDegistir) {
+      callbacks.onSiraDegistir(surukleyenIdx, hedefIdx);
+    }
+  });
 }

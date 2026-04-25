@@ -1233,6 +1233,12 @@ input[type="number"]:focus {
   cursor: default !important;
 }
 
+/* Drag-drop row reorder */
+.tr-draggable .td-sira { cursor: grab; }
+.tr-draggable:active .td-sira { cursor: grabbing; }
+.tr-dragging { opacity: 0.4; }
+.tr-drag-over { box-shadow: inset 0 2px 0 0 var(--accent); }
+
 .td-sira {
   text-align: center;
   color: var(--text-muted);
@@ -1277,8 +1283,14 @@ input[type="number"]:focus {
 
 .td-kanal-adi:focus {
   outline: none;
-  background: rgba(233, 69, 96, 0.1);
-  box-shadow: 0 0 0 1px var(--accent);
+  background: rgba(233, 69, 96, 0.12);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  position: relative;
+  z-index: 1;
+}
+
+#onizleme-tablosu td:focus-within {
+  background: rgba(233, 69, 96, 0.06);
 }
 
 /* ── Empty channel row styling ─────────────────────────────── */
