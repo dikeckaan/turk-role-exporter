@@ -222,6 +222,10 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
 
     const siraTd = document.createElement("td");
     siraTd.className = "td-sira";
+    siraTd.contentEditable = "true";
+    siraTd.spellcheck = false;
+    siraTd.dataset.kind = "sira";
+    siraTd.title = "Yeni sira numarasi yaz, kanal o satira tasinir";
     siraTd.textContent = baslangic + vi + 1;
     tr.appendChild(siraTd);
 
@@ -286,12 +290,21 @@ function dinleyicileriBaglat(tablo) {
     }
   });
 
-  // Cell focus — set anchor for next shift+click
+  // Cell focus — set anchor for next shift+click; for # cell, freeze
+  // tr.draggable so contentEditable text-edit doesn't fight HTML5 drag.
   tbody?.addEventListener("focusin", (e) => {
+    const tr = e.target.closest("tr[data-orig-idx]");
+    if (!tr) return;
+    if (e.target.matches("td.td-sira")) {
+      tr.dataset.eskiDraggable = String(tr.draggable);
+      tr.draggable = false;
+      e.target.dataset.orijinal = e.target.textContent;
+      requestAnimationFrame(() => selectAll(e.target));
+      return;
+    }
     const span = e.target.closest("span.td-kanal-adi");
     const td = e.target.closest("td[data-col-idx]");
-    const tr = e.target.closest("tr[data-orig-idx]");
-    if (!span || !td || !tr) return;
+    if (!span || !td) return;
     span.dataset.orijinal = span.textContent;
     rangeAncor = { rowIdx: parseInt(tr.dataset.origIdx, 10), colIdx: parseInt(td.dataset.colIdx, 10) };
     rangeFocus = { ...rangeAncor };
@@ -299,10 +312,38 @@ function dinleyicileriBaglat(tablo) {
 
   // Cell blur — commit edit
   tbody?.addEventListener("focusout", (e) => {
+    const tr = e.target.closest("tr[data-orig-idx]");
+    if (!tr) return;
+    if (e.target.matches("td.td-sira")) {
+      // Restore tr.draggable to whatever it was at focus-in
+      if (tr.dataset.eskiDraggable !== undefined) {
+        tr.draggable = tr.dataset.eskiDraggable === "true";
+        delete tr.dataset.eskiDraggable;
+      }
+      const yeniSayi = parseInt(e.target.textContent.trim(), 10);
+      const eskiIdx = parseInt(tr.dataset.origIdx, 10);
+      const toplam = aktifSatirlar?.length ?? 0;
+      if (isNaN(yeniSayi) || yeniSayi < 1 || yeniSayi > toplam) {
+        // Bad input → revert
+        e.target.textContent = e.target.dataset.orijinal ?? String(eskiIdx + 1);
+        return;
+      }
+      const hedefIdx = yeniSayi - 1;
+      if (hedefIdx === eskiIdx) {
+        // No change → snap back to the canonical formatting
+        e.target.textContent = String(eskiIdx + 1);
+        return;
+      }
+      // Jump to the target page so the user actually sees the moved row land
+      if (sayfaBoyutu > 0) {
+        mevcutSayfa = Math.floor(hedefIdx / sayfaBoyutu) + 1;
+      }
+      aktifCallbacks?.onSiraDegistir?.(eskiIdx, hedefIdx);
+      return;
+    }
     const span = e.target.closest("span.td-kanal-adi");
     const td = e.target.closest("td[data-col-idx]");
-    const tr = e.target.closest("tr[data-orig-idx]");
-    if (!span || !td || !tr) return;
+    if (!span || !td) return;
     const rowIdx = parseInt(tr.dataset.origIdx, 10);
     const colIdx = parseInt(td.dataset.colIdx, 10);
     const yeni = span.textContent;
@@ -313,6 +354,16 @@ function dinleyicileriBaglat(tablo) {
 
   // Cell keydown — navigation, edit shortcuts, full-cell copy/paste
   tbody?.addEventListener("keydown", (e) => {
+    // # cell: only handle Enter/Esc — commits/cancels the row-position edit
+    if (e.target.matches?.("td.td-sira")) {
+      if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
+      else if (e.key === "Escape") {
+        e.preventDefault();
+        e.target.textContent = e.target.dataset.orijinal ?? e.target.textContent;
+        e.target.blur();
+      }
+      return;
+    }
     const span = e.target.closest("span.td-kanal-adi");
     if (!span) return;
     const td = span.closest("td[data-col-idx]");
@@ -519,11 +570,16 @@ function dinleyicileriBaglat(tablo) {
 
 function renderPaginasyon(tablo, toplamSayfa) {
   let navEl = document.getElementById("tablo-paginasyon");
+  // Live in the .table-container's parent, ABOVE the table itself
+  const container = tablo.closest(".table-container") || tablo;
   if (!navEl) {
     navEl = document.createElement("div");
     navEl.id = "tablo-paginasyon";
-    navEl.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;flex-wrap:wrap;font-size:0.85rem;";
-    tablo.parentNode.insertBefore(navEl, tablo.nextSibling);
+    navEl.style.cssText = "display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0 12px 0;flex-wrap:wrap;font-size:0.85rem;";
+    container.parentNode.insertBefore(navEl, container);
+  } else if (navEl.nextSibling !== container) {
+    // Fix position if a previous build inserted it after the table
+    container.parentNode.insertBefore(navEl, container);
   }
   navEl.replaceChildren();
 

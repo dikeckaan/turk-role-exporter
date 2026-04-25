@@ -1373,6 +1373,16 @@ input[type="number"]:focus {
   text-align: center;
   color: var(--text-muted);
   font-size: 0.8rem;
+  cursor: text;
+  border-radius: 4px;
+  outline: none;
+  transition: background 0.15s;
+}
+.td-sira:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+.td-sira:focus {
+  background: rgba(233, 69, 96, 0.12);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--text);
 }
 
 .td-islem {
