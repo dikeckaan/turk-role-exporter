@@ -24,6 +24,7 @@ CHIRP / üretici CPS yazılımıyla uyumlu CSV üretir. Şu cihazlar için hazı
 - **Baofeng K5 Plus**
 - **OpenGD77** (Radioddity GD-77, TYT MD-380, Baofeng DM-1801, Radioddity RD-5R)
 - **TYT MD-UV390 Plus**
+- **TYT MD-UV390** (GPS'siz)
 
 Temel özellikler:
 

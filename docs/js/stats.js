@@ -13,6 +13,7 @@ const CIHAZ_LABEL = {
   "baofeng-k5-plus":       "Baofeng K5 Plus",
   "opengd77":              "OpenGD77",
   "tyt-md-uv390-plus":     "TYT MD-UV390 Plus",
+  "tyt-md-uv390":          "TYT MD-UV390",
 };
 
 /** Record a visit once per browser session, store + return visitor number. */

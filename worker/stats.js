@@ -28,6 +28,7 @@ const DEVICES = [
   "baofeng-k5-plus",
   "opengd77",
   "tyt-md-uv390-plus",
+  "tyt-md-uv390",
 ];
 const KNOWN_DEVICE_SET = new Set(DEVICES);
 
