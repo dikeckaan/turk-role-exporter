@@ -280,6 +280,17 @@ function csvTabloCallbacks() {
       }
       csvTabloYenile();
     },
+    onTopluSil: (indexler) => {
+      // Indices already arrive sorted descending; splice them in place.
+      undoKaydet(state.csvSatirlar);
+      for (const i of indexler) {
+        if (state.csvSatirlar[i]) state.csvSatirlar.splice(i, 1);
+      }
+      for (let i = 0; i < state.csvSatirlar.length; i++) {
+        state.csvSatirlar[i][0] = String(i + 1);
+      }
+      csvTabloYenile();
+    },
     onHucreDegistir: (rowIndex, colIndex, value) => {
       if (state.csvSatirlar[rowIndex]) {
         undoKaydet(state.csvSatirlar);

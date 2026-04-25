@@ -33,6 +33,9 @@ let aktifSatirlar = null;     // captured on render so document-level listeners 
 let aktifBasliklar = null;
 let aktifCallbacks = null;
 
+// Multi-row selection (checkbox-driven). Holds origIdx values.
+const secimSatirlari = new Set();
+
 // FLIP (row position animation)
 const satirAnahtarlari = new WeakMap();
 let sonrakiAnahtar = 0;
@@ -160,6 +163,18 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     thead.replaceChildren();
     const tr = document.createElement("tr");
 
+    const thSecim = document.createElement("th");
+    thSecim.className = "th-secim";
+    const masterCb = document.createElement("input");
+    masterCb.type = "checkbox";
+    masterCb.title = "Tümünü seç / temizle";
+    masterCb.dataset.role = "master-secim";
+    // Reflect "all visible selected" state
+    const tumuSecili = sayfaIndexler.length > 0 && sayfaIndexler.every((i) => secimSatirlari.has(i));
+    masterCb.checked = tumuSecili;
+    thSecim.appendChild(masterCb);
+    tr.appendChild(thSecim);
+
     const thIslem = document.createElement("th");
     thIslem.className = "th-islem";
     thIslem.textContent = "";
@@ -219,6 +234,17 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
       tr.draggable = true;
       tr.classList.add("tr-draggable");
     }
+    if (secimSatirlari.has(origIdx)) tr.classList.add("tr-secili");
+
+    const secimTd = document.createElement("td");
+    secimTd.className = "td-secim";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.dataset.role = "satir-secim";
+    cb.checked = secimSatirlari.has(origIdx);
+    cb.title = "Bu satırı seç (toplu silme için)";
+    secimTd.appendChild(cb);
+    tr.appendChild(secimTd);
 
     const islemTd = document.createElement("td");
     islemTd.className = "td-islem";
@@ -430,6 +456,38 @@ function dinleyicileriBaglat(tablo) {
     if (aktifCallbacks?.onSil) aktifCallbacks.onSil(rowIdx);
   });
 
+  // Per-row selection checkbox
+  tbody?.addEventListener("change", (e) => {
+    const cb = e.target.closest("input[type=checkbox][data-role='satir-secim']");
+    if (!cb) return;
+    const tr = cb.closest("tr[data-orig-idx]");
+    if (!tr) return;
+    const rowIdx = parseInt(tr.dataset.origIdx, 10);
+    if (cb.checked) {
+      secimSatirlari.add(rowIdx);
+      tr.classList.add("tr-secili");
+    } else {
+      secimSatirlari.delete(rowIdx);
+      tr.classList.remove("tr-secili");
+    }
+    // Refresh the toolbar (the bulk-delete button shows/hides + count updates)
+    csvTabloGuncelle(aktifBasliklar, aktifSatirlar, aktifCallbacks);
+  });
+
+  // Master "select all visible" checkbox in the header
+  thead?.addEventListener("change", (e) => {
+    const cb = e.target.closest("input[type=checkbox][data-role='master-secim']");
+    if (!cb) return;
+    // Determine the currently visible rows (same logic as render, simplified)
+    const trs = tablo.querySelectorAll("tbody tr[data-orig-idx]");
+    if (cb.checked) {
+      trs.forEach((tr) => secimSatirlari.add(parseInt(tr.dataset.origIdx, 10)));
+    } else {
+      trs.forEach((tr) => secimSatirlari.delete(parseInt(tr.dataset.origIdx, 10)));
+    }
+    csvTabloGuncelle(aktifBasliklar, aktifSatirlar, aktifCallbacks);
+  });
+
   // Drag-drop reorder (delegated)
   let surukleyenIdx = null;
   tbody?.addEventListener("dragstart", (e) => {
@@ -624,11 +682,26 @@ function renderPaginasyon(tablo, toplamSayfa) {
   const helpBtn = document.createElement("button");
   helpBtn.type = "button";
   helpBtn.className = "btn-secondary btn-sm";
-  helpBtn.textContent = "?";
+  helpBtn.textContent = "Yardım";
   helpBtn.title = "Klavye kisayollari";
-  helpBtn.style.cssText = "width:28px;padding:0;";
   helpBtn.addEventListener("click", yardimGoster);
   sizeDiv.appendChild(helpBtn);
+
+  // Bulk delete (shows up only when 1+ rows are selected via checkbox)
+  if (secimSatirlari.size > 0) {
+    const topluSilBtn = document.createElement("button");
+    topluSilBtn.type = "button";
+    topluSilBtn.className = "btn-toplu-sil";
+    topluSilBtn.textContent = `${secimSatirlari.size} satırı sil`;
+    topluSilBtn.title = "Seçili satırları toplu sil";
+    topluSilBtn.addEventListener("click", () => {
+      if (!aktifCallbacks?.onTopluSil) return;
+      const idxler = [...secimSatirlari].sort((a, b) => b - a); // descending so splice indices stay valid
+      secimSatirlari.clear();
+      aktifCallbacks.onTopluSil(idxler);
+    });
+    sizeDiv.appendChild(topluSilBtn);
+  }
 
   navEl.appendChild(sizeDiv);
 

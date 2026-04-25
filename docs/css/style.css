@@ -1241,6 +1241,44 @@ input[type="number"]:focus {
   text-align: center;
   cursor: default !important;
 }
+.th-secim,
+.td-secim {
+  width: 36px;
+  text-align: center;
+  cursor: default;
+}
+.th-secim input[type=checkbox],
+.td-secim input[type=checkbox] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+/* Selected row highlight */
+#onizleme-tablosu tbody tr.tr-secili td {
+  background: rgba(74, 144, 226, 0.10);
+}
+#onizleme-tablosu tbody tr.tr-secili td.td-secim {
+  background: rgba(74, 144, 226, 0.22);
+}
+
+/* Bulk-delete button in the toolbar (only renders when 1+ rows are selected) */
+.btn-toplu-sil {
+  background: rgba(233, 69, 96, 0.15);
+  color: var(--error);
+  border: 1px solid rgba(233, 69, 96, 0.4);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-toplu-sil:hover {
+  background: rgba(233, 69, 96, 0.28);
+  border-color: var(--error);
+}
 
 /* Drag-drop row reorder */
 .tr-draggable .td-sira { cursor: grab; }
