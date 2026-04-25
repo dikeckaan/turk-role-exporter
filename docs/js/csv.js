@@ -253,6 +253,48 @@ function cpsSatirlarUret(roleler, profil, opsiyonlar) {
     }
   }
 
+  // FM Simplex (Analog)
+  if (opsiyonlar.fmSimplexEkle) {
+    const fmList = secilenSimplexFrekanslari(FM_SIMPLEX, opsiyonlar.fmSimplexSecim);
+    for (const sx of fmList) {
+      const col = Array(n).fill("0");
+      const f = parseFloat(sx.frek).toFixed(5);
+      col[0] = "1";                                   // Channel Mode = Analog
+      col[1] = `${sx.kanal}-${sx.ad}`.slice(0, 16);
+      col[2] = f; col[3] = f;
+      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot; col[11] = guc;
+      col[14] = "0"; col[25] = d.leaderMS;
+      col[27] = d.contactName; col[28] = d.groupList; col[29] = d.colorCode;
+      col[35] = "None"; col[36] = "None";
+      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      rows.push(col);
+    }
+  }
+
+  // Dijital Simplex (DMR)
+  if (opsiyonlar.dijitalSimplexEkle) {
+    const dijList = secilenSimplexFrekanslari(DIJITAL_SIMPLEX, opsiyonlar.dijitalSimplexSecim);
+    for (const sx of dijList) {
+      const col = Array(n).fill("0");
+      const f = parseFloat(sx.frek).toFixed(5);
+      const ccMatch = (sx.param || "").match(/CC(\d+)/);
+      const tsMatch = (sx.param || "").match(/TS(\d+)/);
+      const cc = ccMatch ? ccMatch[1] : d.colorCode;
+      const ts = tsMatch ? tsMatch[1] : "1";
+      col[0] = "2";                                   // Channel Mode = Digital (DMR)
+      col[1] = `${sx.mod}-${sx.bolum.toUpperCase()}`.slice(0, 16);
+      col[2] = f; col[3] = f;
+      col[4] = d.bandWidth; col[6] = d.squelch; col[9] = d.tot; col[11] = guc;
+      col[14] = "0"; col[25] = d.leaderMS;
+      col[27] = d.contactName; col[28] = d.groupList;
+      col[29] = cc;                                   // Color Code (parsed)
+      col[30] = ts;                                   // Repeater Slot (parsed)
+      col[35] = "None"; col[36] = "None";
+      col[40] = d.nonQtDqt; col[41] = d.displayPtt; col[42] = d.reverseBurst;
+      rows.push(col);
+    }
+  }
+
   if (opsiyonlar.bosAnalogAdet > 0) {
     const f = validateFrekans(opsiyonlar.bosAnalogFrekans, 145.5, 130.0, 480.0).toFixed(5);
     for (let i = 0; i < opsiyonlar.bosAnalogAdet; i++) {

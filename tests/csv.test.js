@@ -25,6 +25,35 @@ const chirpProfil = {
   shiftHesaplama: { VHF: -0.6, UHF: -7.6 },
 };
 
+const cpsProfil = {
+  csvFormat: "cps",
+  csvSutunlari: [
+    "Channel Mode", "Channel Name", "RX Frequency(MHz)", "TX Frequency(MHz)",
+    "Band Width", "Scan List", "Squelch", "RX Ref Frequency", "TX Ref Frequency",
+    "TOT[s]", "TOT Rekey Delay[s]", "Power", "Admit Criteria", "Auto Scan",
+    "Rx Only", "Lone Worker", "VOX", "Allow Talkaround", "Send GPS Info",
+    "Receive GPS Info", "Private Call Confirmed", "Emergency Alarm Ack",
+    "Data Call Confirmed", "Allow Interrupt", "DCDM Switch", "Leader/MS",
+    "Emergency System", "Contact Name", "Group List", "Color Code",
+    "Repeater Slot", "In Call Criteria", "Privacy", "Privacy No.", "GPS System",
+    "CTCSS/DCS Dec", "CTCSS/DCS Enc", "Rx Signaling System", "Tx Signaling System",
+    "QT Reverse", "Non-QT/DQT Turn-off Freq", "Display PTT ID",
+    "Reverse Burst/Turn-off Code", "Decode 1", "Decode 2", "Decode 3",
+    "Decode 4", "Decode 5", "Decode 6", "Decode 7", "Decode 8",
+  ],
+  varsayilanDegerler: {
+    bandWidth: "0", squelch: "3", tot: "4", power: "2",
+    leaderMS: "1", contactName: "1", groupList: "1", colorCode: "1",
+    nonQtDqt: "2", displayPtt: "1", reverseBurst: "1",
+  },
+  shiftHesaplama: { VHF: -0.6, UHF: -7.6 },
+  gucSeviyeleri: { High: "2", Mid: "1", Low: "0" },
+  maxKanalAdi: 16,
+  bantlar: ["VHF", "UHF"],
+  modlar: ["Analog", "Dijital"],
+  maxKanal: 3000,
+};
+
 const mockRoleler = [
   {
     sehir: "istanbul",
@@ -235,5 +264,31 @@ describe("CHIRP simplex satırları", () => {
     assert.equal(parseFloat(satirlar[0][2]), 145.5);
     assert.equal(parseFloat(satirlar[1][2]), 144.55);
     assert.ok(parseInt(satirlar[0][0]) < parseInt(satirlar[1][0]));
+  });
+});
+
+describe("CPS simplex satırları", () => {
+  it("FM simplex Channel Mode=1 (analog) ile yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      fmSimplexEkle: true,
+      fmSimplexSecim: { vhf: ["V01"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], cpsProfil, opts);
+    assert.equal(satirlar.length, 1);
+    assert.equal(satirlar[0][0], "1");                // Channel Mode = Analog
+    assert.equal(satirlar[0][2], "145.50000");        // RX 5 decimal
+    assert.equal(satirlar[0][36], "None");            // CTCSS/DCS Enc
+  });
+
+  it("dijital simplex Channel Mode=2 (DMR) ile Color Code+TimeSlot yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      dijitalSimplexEkle: true,
+      dijitalSimplexSecim: { vhf: ["DV2"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], cpsProfil, opts);
+    assert.equal(satirlar.length, 1);
+    assert.equal(satirlar[0][0], "2");                // Channel Mode = Digital
+    assert.equal(satirlar[0][29], "1");               // Color Code from "TG99 CC1 TS1"
+    assert.equal(satirlar[0][30], "1");               // Repeater Slot
   });
 });
