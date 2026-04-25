@@ -7,7 +7,10 @@
 import { kanalAdiOlustur, txFrekansHesapla, isDijital } from "./utils.js";
 import {
   fmIstasyonlariGetir,
+  FM_SIMPLEX,
+  DIJITAL_SIMPLEX,
 } from "./frekanslar.js";
+import { secilenSimplexFrekanslari } from "./simplex-ui.js";
 
 function csvEscape(val) {
   const str = String(val);
@@ -132,7 +135,46 @@ function chirpSatirlarUret(roleler, profil, opsiyonlar) {
     }
   }
 
-  // Simplex (FM + Dijital) — Task 6'da yeniden eklenecek
+  // FM Simplex
+  if (opsiyonlar.fmSimplexEkle) {
+    const fmList = secilenSimplexFrekanslari(FM_SIMPLEX, opsiyonlar.fmSimplexSecim);
+    for (const sx of fmList) {
+      const col = boslukSatir(n);
+      col[0] = String(loc++);
+      col[1] = `${sx.kanal}-${sx.ad.replace(/\s+/g, "")}`.slice(0, maxAd);
+      col[2] = parseFloat(sx.frek).toFixed(6);
+      col[3] = ""; col[4] = "0.000000";
+      col[5] = ""; col[6] = ""; col[7] = "";   // tone yok
+      col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
+      col[11] = d.crossMode;
+      col[12] = sx.mod === "USB" ? "USB" : "FM";
+      col[13] = "12.50";
+      col[14] = ""; col[15] = guc;
+      if (n > 16) col[16] = sx.ad;
+      rows.push(col);
+    }
+  }
+
+  // Dijital Simplex (analog cihazlarda RX-only FM olarak; cihaz dijital decode edemez)
+  if (opsiyonlar.dijitalSimplexEkle) {
+    const dijList = secilenSimplexFrekanslari(DIJITAL_SIMPLEX, opsiyonlar.dijitalSimplexSecim);
+    for (const sx of dijList) {
+      const col = boslukSatir(n);
+      col[0] = String(loc++);
+      col[1] = `${sx.mod.replace("-", "").slice(0, 4)}-${sx.bolum.toUpperCase()}`.slice(0, maxAd);
+      col[2] = parseFloat(sx.frek).toFixed(6);
+      col[3] = "off"; col[4] = "0.000000";    // RX-only
+      col[5] = ""; col[6] = ""; col[7] = "";   // tone yok
+      col[8] = d.dtcsCode; col[9] = d.dtcsPolarity; col[10] = d.rxDtcsCode;
+      col[11] = d.crossMode;
+      col[12] = "FM";                           // analog cihaz dijital decode edemez
+      col[13] = "12.50";
+      col[14] = "S";                            // Skip on
+      col[15] = guc;
+      if (n > 16) col[16] = `${sx.mod} ${sx.param || ""}`.trim();
+      rows.push(col);
+    }
+  }
 
   // Empty analog
   if (opsiyonlar.bosAnalogAdet > 0) {

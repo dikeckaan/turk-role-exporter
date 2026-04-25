@@ -11,7 +11,7 @@ const chirpProfil = {
   csvSutunlari: [
     "Location", "Name", "Frequency", "Duplex", "Offset", "Tone",
     "rToneFreq", "cToneFreq", "DtcsCode", "DtcsPolarity", "RxDtcsCode",
-    "CrossMode", "Mode", "TStep", "Skip", "Power",
+    "CrossMode", "Mode", "TStep", "Skip", "Power", "Comment",
   ],
   varsayilanDegerler: {
     dtcsCode: "023", dtcsPolarity: "NN", rxDtcsCode: "023",
@@ -59,7 +59,10 @@ const defaultOpsiyonlar = {
   airbandSecili: [],
   marineEkle: false,
   marineSecili: [],
-  simplexEkle: false,
+  fmSimplexEkle: false,
+  fmSimplexSecim: { vhf: [], uhf: [] },
+  dijitalSimplexEkle: false,
+  dijitalSimplexSecim: { vhf: [], uhf: [] },
   rxOnly: true,
   gucSeviyesi: "High",
   kanalAdiFormati: "plaka-konum-bant",
@@ -78,9 +81,9 @@ describe("csvSatirlarUret", () => {
 
   it("generates correct column count per row", () => {
     const { basliklar, satirlar } = csvSatirlarUret(mockRoleler, chirpProfil, defaultOpsiyonlar);
-    assert.equal(basliklar.length, 16);
+    assert.equal(basliklar.length, 17);
     for (const row of satirlar) {
-      assert.equal(row.length, 16);
+      assert.equal(row.length, 17);
     }
   });
 
@@ -158,5 +161,79 @@ describe("jsonOlustur", () => {
     assert.equal(parsed.length, 2);
     assert.equal(parsed[0].Name, "Test");
     assert.equal(parsed[1].Freq, "446.0");
+  });
+});
+
+describe("CHIRP simplex satırları", () => {
+  it("FM simplex açıkken seçili kanallar Mode=FM ile yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      fmSimplexEkle: true,
+      fmSimplexSecim: { vhf: ["V01"], uhf: ["U01"] },
+    };
+    const { satirlar } = csvSatirlarUret([], chirpProfil, opts);
+    assert.equal(satirlar.length, 2);
+    const v01 = satirlar.find(r => parseFloat(r[2]) === 145.5);
+    assert.ok(v01, "V01 satırı bulunamadı");
+    assert.equal(v01[12], "FM");          // Mode
+    assert.equal(v01[6], "");             // rToneFreq boş
+    assert.equal(v01[5], "");             // Tone field boş
+  });
+
+  it("USB modu olan SSB Calling kanalı Mode=USB ile yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      fmSimplexEkle: true,
+      fmSimplexSecim: { vhf: ["VSB"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], chirpProfil, opts);
+    const sb = satirlar.find(r => parseFloat(r[2]) === 144.3);
+    assert.equal(sb[12], "USB");
+  });
+
+  it("dijital simplex analog cihazda Duplex=off (RX-only) yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      dijitalSimplexEkle: true,
+      dijitalSimplexSecim: { vhf: ["DV2"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], chirpProfil, opts);
+    const dmr = satirlar.find(r => parseFloat(r[2]) === 144.55);
+    assert.ok(dmr);
+    assert.equal(dmr[3], "off");                 // Duplex
+    assert.equal(dmr[12], "FM");                  // Mode (analog cihaz)
+    assert.equal(dmr[14], "S");                   // Skip
+    if (chirpProfil.csvSutunlari.includes("Comment")) {
+      const cmt = chirpProfil.csvSutunlari.indexOf("Comment");
+      assert.match(dmr[cmt], /DMR/);
+      assert.match(dmr[cmt], /TG99/);
+    }
+  });
+
+  it("hiçbir simplex açık değilse simplex satırı eklenmez", () => {
+    const { satirlar } = csvSatirlarUret([], chirpProfil, defaultOpsiyonlar);
+    assert.equal(satirlar.length, 0);
+  });
+
+  it("FM Comment kolonuna ad yazılır", () => {
+    const opts = { ...defaultOpsiyonlar,
+      fmSimplexEkle: true,
+      fmSimplexSecim: { vhf: ["V01"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], chirpProfil, opts);
+    const v01 = satirlar.find(r => parseFloat(r[2]) === 145.5);
+    assert.equal(v01[16], "VHF Calling");
+  });
+
+  it("FM ve dijital aynı anda açıldığında her ikisi de yazılır, FM önce", () => {
+    const opts = { ...defaultOpsiyonlar,
+      fmSimplexEkle: true,
+      fmSimplexSecim: { vhf: ["V01"], uhf: [] },
+      dijitalSimplexEkle: true,
+      dijitalSimplexSecim: { vhf: ["DV2"], uhf: [] },
+    };
+    const { satirlar } = csvSatirlarUret([], chirpProfil, opts);
+    assert.equal(satirlar.length, 2);
+    // FM önce gelmeli (Location 1), dijital sonra (Location 2)
+    assert.equal(parseFloat(satirlar[0][2]), 145.5);
+    assert.equal(parseFloat(satirlar[1][2]), 144.55);
+    assert.ok(parseInt(satirlar[0][0]) < parseInt(satirlar[1][0]));
   });
 });
