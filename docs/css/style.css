@@ -1239,6 +1239,67 @@ input[type="number"]:focus {
 .tr-dragging { opacity: 0.4; }
 .tr-drag-over { box-shadow: inset 0 2px 0 0 var(--accent); }
 
+/* Sortable header */
+.th-sortable { cursor: pointer; user-select: none; }
+.th-sortable:hover { background: rgba(255,255,255,0.04); }
+.th-sort-ind { color: var(--accent); font-size: 0.7rem; }
+
+/* Find & Replace modal */
+.find-replace-overlay {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: none;
+}
+.find-replace-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 320px;
+}
+.find-replace-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.find-replace-row input[type=text] {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 0.9rem;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.find-replace-row input[type=text]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.fr-count {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  min-width: 70px;
+  text-align: center;
+}
+.find-replace-opts label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.hucre-vurgu {
+  background: rgba(255, 215, 0, 0.25) !important;
+  transition: background 0.3s;
+}
+
 .td-sira {
   text-align: center;
   color: var(--text-muted);

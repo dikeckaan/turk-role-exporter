@@ -6,6 +6,21 @@
 
 let mevcutSayfa = 1;
 let sayfaBoyutu = 100;
+let sortKolon = null;   // 0-based index into basliklar (the data columns, NOT including # and Islem)
+let sortYon = null;     // "asc" | "desc" | null
+
+function kolonNumerikMi(satirlar, ci) {
+  let sayisal = 0;
+  let toplam = 0;
+  for (const row of satirlar) {
+    const v = (row[ci] ?? "").toString().trim();
+    if (v === "") continue;
+    toplam++;
+    if (!isNaN(parseFloat(v)) && isFinite(Number(v))) sayisal++;
+    if (toplam >= 10) break;
+  }
+  return toplam > 0 && sayisal === toplam;
+}
 
 /**
  * Renders editable CSV preview table with pagination.
@@ -28,11 +43,34 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
     thSira.textContent = "#";
     tr.appendChild(thSira);
 
-    for (const h of basliklar) {
+    basliklar.forEach((h, ci) => {
       const th = document.createElement("th");
+      th.className = "th-sortable";
       th.textContent = h;
+      if (sortKolon === ci && sortYon) {
+        const ind = document.createElement("span");
+        ind.className = "th-sort-ind";
+        ind.textContent = sortYon === "asc" ? " \u25B2" : " \u25BC";
+        th.appendChild(ind);
+      }
+      th.addEventListener("click", () => {
+        if (sortKolon === ci) {
+          sortYon = sortYon === "asc" ? "desc" : sortYon === "desc" ? null : "asc";
+          if (sortYon === null) sortKolon = null;
+        } else {
+          sortKolon = ci;
+          sortYon = "asc";
+        }
+        if (callbacks?.onSortDegistir && sortKolon !== null) {
+          callbacks.onSortDegistir(sortKolon, sortYon);
+        } else {
+          // Sort cleared — just re-render; original order is preserved by callback never having mutated it,
+          // but if it did mutate, undo can restore it.
+          csvTabloGuncelle(basliklar, satirlar, callbacks);
+        }
+      });
       tr.appendChild(th);
-    }
+    });
 
     const thIslem = document.createElement("th");
     thIslem.className = "th-islem";
@@ -149,6 +187,28 @@ export function csvTabloGuncelle(basliklar, satirlar, callbacks) {
             span.blur();
             target.focus();
             selectAll(target);
+          }
+          return;
+        }
+        // Excel-style full-cell copy/paste: when no text is selected,
+        // Ctrl+C copies the whole cell, Ctrl+V replaces it.
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+          const sel = window.getSelection();
+          if (sel.isCollapsed) {
+            e.preventDefault();
+            navigator.clipboard?.writeText(span.textContent);
+          }
+          return;
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
+          const sel = window.getSelection();
+          if (sel.isCollapsed && span.textContent.length > 0) {
+            e.preventDefault();
+            navigator.clipboard?.readText().then((text) => {
+              if (text == null) return;
+              span.textContent = text.replace(/\r?\n/g, " ").trim();
+              span.blur();
+            });
           }
         }
       });

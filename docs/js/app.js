@@ -46,6 +46,7 @@ import { pingIfFirstVisit, recordDownload, loadStats, renderStatsPanel } from ".
 import { themeBaslat } from "./theme.js";
 import { presetUiKur } from "./presets.js";
 import { undoUiKur, undoKaydet, undoTemizle } from "./undo.js";
+import { findReplaceUiKur } from "./find-replace.js";
 
 // ─── Boot ─────────────────────────────────────────────────
 
@@ -63,6 +64,9 @@ async function basla() {
 
   // Initialize undo/redo UI
   undoUiKur(document.getElementById("undo-redo-container"), state, csvTabloYenile);
+
+  // Initialize Ctrl+F find & replace
+  findReplaceUiKur(csvTabloYenile);
 
   // Initialize preset UI
   presetUiKur(
@@ -289,6 +293,23 @@ function csvTabloCallbacks() {
       const [tasinan] = state.csvSatirlar.splice(eskiIdx, 1);
       state.csvSatirlar.splice(hedefIdx, 0, tasinan);
       // Renumber the location/index column (col 0) so it stays sequential.
+      for (let i = 0; i < state.csvSatirlar.length; i++) {
+        state.csvSatirlar[i][0] = String(i + 1);
+      }
+      csvTabloYenile();
+    },
+    onSortDegistir: (kolonIdx, yon) => {
+      if (state.csvSatirlar.length < 2) return;
+      undoKaydet(state.csvSatirlar);
+      const numerik = state.csvSatirlar.every((r) => {
+        const v = (r[kolonIdx] ?? "").toString().trim();
+        return v === "" || (!isNaN(parseFloat(v)) && isFinite(Number(v)));
+      });
+      const cmp = numerik
+        ? (a, b) => (parseFloat(a[kolonIdx]) || 0) - (parseFloat(b[kolonIdx]) || 0)
+        : (a, b) => String(a[kolonIdx] ?? "").localeCompare(String(b[kolonIdx] ?? ""), "tr");
+      state.csvSatirlar.sort(yon === "desc" ? (a, b) => -cmp(a, b) : cmp);
+      // Renumber the location column so it reflects new order.
       for (let i = 0; i < state.csvSatirlar.length; i++) {
         state.csvSatirlar[i][0] = String(i + 1);
       }
